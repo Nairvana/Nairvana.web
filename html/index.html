@@ -32,6 +32,59 @@
             top: 0;
             z-index: 1000;
         }
+
+             /* 受限链接样式 */
+        a[data-lan-only] {
+            position: relative;
+        }
+
+        /* 可选：为受限内容添加视觉提示 */
+        .restricted-badge {
+            background: #ffc107;
+            color: #856404;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.7em;
+            margin-left: 5px;
+        }
+
+        /* 基本页面样式 */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        nav {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        nav a {
+            margin-right: 1rem;
+            text-decoration: none;
+            color: #007bff;
+        }
+
+        nav a:hover {
+            text-decoration: underline;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .restricted-section {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+        }
+        
     </style>
 
 </head>
