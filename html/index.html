@@ -17,6 +17,23 @@
 	<link rel="stylesheet" href="style.css">
 	<link rel="stylesheet" href="assets/css/responsive.css">
 
+    <!-- 引入局域网检测脚本 -->
+    <script src="lan-detector.js"></script>
+
+    <style>
+        /* 为受限内容添加样式 */
+        [data-lan-only] {
+            transition: all 0.3s ease;
+        }
+
+        /* 警告横幅样式 */
+        #lan-warning-banner {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+    </style>
+
 </head>
 <body>
 	<div id="preloader">
@@ -59,15 +76,15 @@
 										<li class="menu-iteam"><a  href="index.html">Home1</a></li>
 									</ul>
 								</li>
-								<li class="menu-iteam"><a href="about.html">About</a></li>
-								<li class="menu-iteam"><a href="service.html">Service</a></li>
+								<li class="menu-iteam"><a href="about.html"data-lan-only>About</a></li>
+								<li class="menu-iteam"><a href="service.html"data-lan-only>Service</a></li>
 								<li class="menu-iteam menu-iteam-has-childrean"><a href="#" data-toggle="submenu">Pages <i class="plus"></i></a>
 									<ul class="submenu">
-										<li class="menu-iteam"><a  href="gallery.html">Gallery</a></li>
-										<li class="menu-iteam"><a  href="team.html">Team</a></li>
-										<li class="menu-iteam"><a  href="testimonial.html">Testimonial</a></li>
-										<li class="menu-iteam"><a  href="sign.html">Sign</a></li>
-										<li class="menu-iteam"><a  href="blog.html">blog</a></li>								
+										<li class="menu-iteam"><a  href="gallery.html"data-lan-only>Gallery</a></li>
+										<li class="menu-iteam"><a  href="team.html"data-lan-only>Team</a></li>
+										<li class="menu-iteam"><a  href="testimonial.html"data-lan-only>Testimonial</a></li>
+										<li class="menu-iteam"><a  href="sign.html"data-lan-only>Sign</a></li>
+										<li class="menu-iteam"><a  href="blog.html"data-lan-only>blog</a></li>
 									</ul>
 								</li>
 								<li class="menu-iteam"><a href="contact.html">Contact</a></li>
@@ -360,5 +377,14 @@
     <script src="assets/js/jquery.counterup.min.js"></script>
     <script src="assets/js/mixitup.min.js"></script>
     <script src="assets/js/script.js"></script>
+
+        <!-- 在页面底部初始化检测 -->
+    <script>
+        // 页面加载完成后初始化访问控制
+        document.addEventListener('DOMContentLoaded', function() {
+            LanAccessControl.init();
+        });
+    </script>
+
 </body>
 </html>

@@ -7,6 +7,9 @@
 	<title>华北电力大学官方网站</title>
 	<link rel="icon" href="assets/img/ncepu.png" type="image/png" sizes="18x18">
 
+    <!-- 引入局域网检测脚本 -->
+    <script src="lan-detector.js"></script>
+
 	<link rel="stylesheet" href="assets/css/bootstrap.min.css">
 	<link rel="stylesheet" href="assets/css/fontawesome.all.min.css">
 	<link rel="stylesheet" href="assets/css/owl.carousel.min.css">
@@ -300,5 +303,22 @@
     <script src="assets/js/jquery.nav.min.js"></script>
     <script src="assets/js/jquery.magnific-popup.min.js"></script>
     <script src="assets/js/script.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化访问控制
+            LanAccessControl.init();
+
+            // 对于非首页，如果不是局域网用户，立即重定向
+            const isLanUser = sessionStorage.getItem('isLanUser');
+            if (isLanUser === 'false') {
+                // 显示提示后重定向
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 1500);
+            }
+        });
+    </script>
+
 </body>
 </html>

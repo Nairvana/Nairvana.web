@@ -17,9 +17,12 @@
 	<link rel="stylesheet" href="style.css">
 	<link rel="stylesheet" href="assets/css/responsive.css">
 
+    <!-- 引入局域网检测脚本 -->
+    <script src="lan-detector.js"></script>
+
 </head>
 <body>
-	<div id="preloader">
+	<div id="preloader"data-lan-only>
 		<div class="loader">
 		    <div>
 		        <span></span>
@@ -39,7 +42,7 @@
 		    </div>
 		</div>
 	</div>
-	<header class="header-area"> 
+	<header class="header-area"data-lan-only>
 		<div class="container">
 			<div class="row">
 				<div class="col-xl-12">
@@ -85,7 +88,7 @@
 		</div>
 	</header>
 	<!-- home-page -->
-	<div class="home-page" style="background-image:url('assets/img/banner/banner1.jpg')">
+	<div class="home-page" style="background-image:url('assets/img/banner/banner1.jpg')"data-lan-only>
 		<div class="container">
 			<div class="row">
 				<div class="col-lg-12">
@@ -103,7 +106,7 @@
 		</div>
 	</div>
 	<!-- service-area -->
-	<section class="service-area section-padding">
+	<section class="service-area section-padding"data-lan-only>
 		<div class="container">
 			<div class="row">
 				<div class="section-heading text-center section-heading2">
@@ -183,7 +186,7 @@
 	</section>
 
 	<!-- featured-area -->
-	<section class="featured-area section-padding">
+	<section class="featured-area section-padding"data-lan-only>
 		<div class="container">
 			<div class="row">
 				<div class="col-lg-6">
@@ -214,7 +217,7 @@
 		</div>
 	</section>
 	<!-- about-area -->
-	<section class="about-area section-padding">
+	<section class="about-area section-padding"data-lan-only>
 		<div class="container">
 			<div class="row">
 				<div class="col-lg-6 align-self-center">
@@ -256,7 +259,7 @@
 	</section>
 
 	<!-- Business-area -->
-	<div class="Business-area" style="background-image:url('assets/img/ft/bussiner.jpg')">
+	<div class="Business-area" style="background-image:url('assets/img/ft/bussiner.jpg')"data-lan-only>
 		<div class="container">
 			<div class="row">
 				<div class="col-lg-8 col-md-12 align-self-center">
@@ -296,5 +299,22 @@
     <script src="assets/js/mixitup.min.js"></script>
     <script src="assets/js/wow.min.js"></script>
     <script src="assets/js/script.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化访问控制
+            LanAccessControl.init();
+
+            // 对于非首页，如果不是局域网用户，立即重定向
+            const isLanUser = sessionStorage.getItem('isLanUser');
+            if (isLanUser === 'false') {
+                // 显示提示后重定向
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 1500);
+            }
+        });
+    </script>
+
 </body>
 </html>
