@@ -621,16 +621,16 @@
             findPrey() {
                 if (this.type !== 'predator') return null;
 
-                let closestPrey = null;
-                let closestDistance = Infinity;
-                const huntRadius = 250; // 增加捕食检测半径
+                let bestPrey = null;
+                let largestSize = 0;
+                const huntRadius = 250; // 捕食检测半径
 
                 // 限制每帧检查的猎物数量，提高性能
                 const maxChecks = Math.min(20, this.allMicrobes.length);
                 let checks = 0;
 
                 for (const other of this.allMicrobes) {
-                    if (other === this || other.type === 'predator' || other.dna.size > this.dna.size * 0.9) continue;
+                    if (other === this || other.type === 'predator' || other.dna.size >= this.dna.size) continue;
 
                     checks++;
                     if (checks > maxChecks) break;
@@ -639,17 +639,27 @@
                     const dy = other.position.y - this.position.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
 
-                    // 考虑猎物移动方向 - 优先追逐移动方向接近的猎物
-                    const dotProduct = this.velocity.x * other.velocity.x + this.velocity.y * other.velocity.y;
-                    const directionBonus = dotProduct > 0 ? 0.8 : 1.0; // 如果方向相同，稍微降低优先级
-
-                    if (distance < huntRadius && distance * directionBonus < closestDistance) {
-                        closestPrey = other;
-                        closestDistance = distance * directionBonus;
+                    // 只考虑在捕食半径内的鱼
+                    if (distance < huntRadius) {
+                        // 优先选择最大的鱼
+                        if (other.dna.size > largestSize) {
+                            bestPrey = other;
+                            largestSize = other.dna.size;
+                        }
+                        // 如果大小相同，选择更近的
+                        else if (other.dna.size === largestSize && bestPrey) {
+                            const currentDistance = Math.sqrt(
+                                Math.pow(bestPrey.position.x - this.position.x, 2) +
+                                Math.pow(bestPrey.position.y - this.position.y, 2)
+                            );
+                            if (distance < currentDistance) {
+                                bestPrey = other;
+                            }
+                        }
                     }
                 }
 
-                return closestPrey;
+                return bestPrey;
             }
 
             // 追捕猎物
