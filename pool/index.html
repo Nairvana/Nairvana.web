@@ -210,13 +210,12 @@
                         </div>
                     </div>
                     <div class="instructions">
-                        <p>🐟 点击生物将其转化为能量点</p>
+                        <p>🐟 点击生物将其捕杀转化为能量点</p>
                         <p>🌟 能量点会吸引附近的生物</p>
                         <p>🦈 鲨鱼会主动捕食其他鱼</p>
                         <p>🐠 小鱼会形成鱼群</p>
                         <p>⚔️ 同样大小的鱼会争斗</p>
-                        <p>🏃 鱼会逃离比自己大三倍的鱼</p>
-                        <p>🚀 速度与大小成反比</p>
+                        <p>🏃 鱼会逃离比自己大的鱼</p>
                         <p>👆 按住鼠标并拖动可以吸引鱼群</p>
                     </div>
                 </div>
@@ -382,14 +381,14 @@
                 this.dna.size = Math.max(1, Math.min(15, this.dna.size));
             }
             
-            // 计算实际速度 - 所有生物统一速度，鲨鱼为3倍速
+            // 计算实际速度 - 所有生物统一速度，鲨鱼为1.5倍速
             get speed() {
                 // 基础速度（所有生物统一）
                 const baseSpeed = 2.0;
                 
                 // 鲨鱼速度为3倍
                 if (this.type === 'predator') {
-                    return baseSpeed * 3.0;
+                    return baseSpeed * 1.5;
                 }
                 
                 // 其他生物正常速度
@@ -818,7 +817,7 @@
                 
                 let bestPrey = null;
                 let largestSize = 0;
-                const huntRadius = 250; // 捕食检测半径
+                const huntRadius = 300; // 捕食检测半径
                 
                 // 限制每帧检查的猎物数量，提高性能
                 const maxChecks = Math.min(20, this.allMicrobes.length);
@@ -1033,7 +1032,7 @@
             // 逃避系统
             // =============================================
             
-            // 寻找威胁（比自己大三倍的生物）
+            // 寻找威胁
             findThreat() {
                 let closestThreat = null;
                 let closestDistance = Infinity;
@@ -1044,7 +1043,7 @@
                 let checks = 0;
                 
                 for (const other of this.allMicrobes) {
-                    if (other === this || other.dna.size < this.dna.size * 3) continue;
+                    if (other === this || other.dna.size < this.dna.size ) continue;
                     
                     checks++;
                     if (checks > maxChecks) break;
