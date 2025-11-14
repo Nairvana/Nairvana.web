@@ -106,11 +106,13 @@
                     <div>帧率: <span id="fps">0</span></div>
                     <div>吞噬事件: <span id="eatCount">0</span></div>
                     <div>争斗事件: <span id="combatCount">0</span></div>
+                    <div>逃避事件: <span id="escapeCount">0</span></div>
                 </div>
                 <div class="controls">
                     <button id="clearBtn">清空池子</button>
                     <button id="addTestBtn">添加测试生物</button>
                     <button id="addLargeBtn">添加大型生物</button>
+                    <button id="addPredatorBtn">添加捕食者</button>
                 </div>
                 <div class="instructions">
                     <p>🎨 用鼠标绘制线条来创造生物</p>
@@ -118,6 +120,7 @@
                     <p>👑 小生物会跟随附近的大生物</p>
                     <p>⚔️ 同样大小的生物会争斗</p>
                     <p>🔍 好奇心强的生物会被争斗吸引</p>
+                    <p>🏃 生物会逃离比自己大三倍的生物</p>
                 </div>
             </div>
         </div>
@@ -146,25 +149,26 @@
                     ...dna
                 };
 
-                // 状态属性
+                // 状态属性 - 移除了自然死亡机制
                 this.energy = 100;
                 this.age = 0;
-                this.maxAge = 500 + Math.random() * 1000;
 
-                // 新增：伴随系统
+                // 伴随系统
                 this.lord = null;
                 this.followOffset = { x: 0, y: 0 };
                 this.isFollowing = false;
 
-                // 新增：争斗系统
+                // 争斗系统
                 this.combatTarget = null;
                 this.combatCooldown = 0;
                 this.exclamationTimer = 0;
 
-                // 唯一标识符（用于调试）
-                this.id = Math.random().toString(36).substr(2, 9);
+                // 逃避系统
+                this.escapeTarget = null;
+                this.escapeTimer = 0;
 
-                console.log(`🐛 新生物诞生 - 位置: (${x.toFixed(0)}, ${y.toFixed(0)}), 大小: ${this.dna.size.toFixed(1)}`);
+                // 唯一标识符
+                this.id = Math.random().toString(36).substr(2, 9);
             }
 
             // 生成随机颜色
@@ -180,22 +184,32 @@
                 // 更新计时器
                 if (this.exclamationTimer > 0) this.exclamationTimer--;
                 if (this.combatCooldown > 0) this.combatCooldown--;
+                if (this.escapeTimer > 0) this.escapeTimer--;
 
-                // 寻找领主（如果没有在争斗中）
-                if (!this.combatTarget && !this.lord) {
+                // 逃避行为优先于其他行为
+                if (!this.escapeTarget) {
+                    this.escapeTarget = this.findThreat();
+                }
+
+                if (this.escapeTarget) {
+                    this.escapeFromThreat();
+                }
+                // 如果没有逃避行为，继续其他行为
+                else if (!this.combatTarget && !this.lord) {
+                    // 寻找领主（如果没有在争斗中）
                     this.lord = this.findLord();
                 }
 
                 // 跟随领主移动
-                if (this.lord && !this.combatTarget) {
+                if (this.lord && !this.combatTarget && !this.escapeTarget) {
                     this.followLord();
                 }
 
-                // 原有的移动逻辑（如果没有跟随或争斗）
-                if (!this.lord && !this.combatTarget) {
+                // 原有的移动逻辑（如果没有跟随或争斗或逃避）
+                if (!this.lord && !this.combatTarget && !this.escapeTarget) {
                     this.position.x += this.velocity.x * this.dna.speed;
                     this.position.y += this.velocity.y * this.dna.speed;
-                } else if (this.lord) {
+                } else if (this.lord && !this.escapeTarget) {
                     // 跟随时的移动（速度稍慢）
                     this.position.x += this.velocity.x * this.dna.speed * 0.7;
                     this.position.y += this.velocity.y * this.dna.speed * 0.7;
@@ -215,7 +229,7 @@
                 }
 
                 // 随机方向变化（受好奇心影响）
-                if (Math.random() < 0.02 * this.dna.curiosity) {
+                if (Math.random() < 0.02 * this.dna.curiosity && !this.escapeTarget) {
                     this.velocity.x += (Math.random() - 0.5) * 0.5;
                     this.velocity.y += (Math.random() - 0.5) * 0.5;
                 }
@@ -227,19 +241,28 @@
                     this.velocity.y = (this.velocity.y / speed) * this.dna.speed;
                 }
 
-                // 能量和年龄管理
-                this.energy -= 0.1;
+                // 年龄增长（不再导致死亡）
                 this.age++;
 
-                // 检查是否死亡
-                return this.energy > 0 && this.age < this.maxAge && this.dna.size > 0.5;
+                // 检查是否死亡（只通过争斗或吞噬）
+                return this.energy > 0 && this.dna.size > 0.5;
             }
 
             // 绘制生物
             draw(ctx) {
+                // 根据状态决定颜色
+                let color = this.dna.color;
+                if (this.escapeTarget) {
+                    // 逃避状态显示为红色
+                    color = `hsl(0, 70%, 60%)`;
+                } else if (this.combatTarget) {
+                    // 争斗状态显示为橙色
+                    color = `hsl(30, 70%, 60%)`;
+                }
+
                 // 根据社交性决定透明度（社交性高的更不透明）
                 const alpha = 0.3 + this.dna.social * 0.7;
-                ctx.fillStyle = this.dna.color.replace(')', `, ${alpha})`).replace('hsl', 'hsla');
+                ctx.fillStyle = color.replace(')', `, ${alpha})`).replace('hsl', 'hsla');
 
                 // 根据好奇心决定形状复杂度
                 if (this.dna.curiosity > 0.7) {
@@ -256,7 +279,10 @@
                 }
 
                 // 速度指示器 - 根据速度改变颜色
-                const speedColor = this.dna.speed > 2 ? '#ff4444' : '#44ff44';
+                let speedColor = this.dna.speed > 2 ? '#ff4444' : '#44ff44';
+                if (this.escapeTarget) {
+                    speedColor = '#ff0000'; // 逃避状态为红色
+                }
                 ctx.strokeStyle = speedColor;
                 ctx.lineWidth = 1;
                 ctx.beginPath();
@@ -276,13 +302,10 @@
                     ctx.stroke();
                 }
 
-                // 新增：绘制感叹号（如果正在显示）
+                // 绘制感叹号（如果正在显示）
                 if (this.exclamationTimer > 0) {
                     this.drawExclamation(ctx);
                 }
-
-                // 新增：绘制状态指示器
-                this.drawStatusIndicator(ctx);
             }
 
             // 绘制星形方法
@@ -331,33 +354,10 @@
                 ctx.fillText('!', this.position.x, this.position.y - this.dna.size - 10);
             }
 
-            // 绘制状态指示器
-            drawStatusIndicator(ctx) {
-                if (this.lord) {
-                    // 绘制跟随线
-                    ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
-                    ctx.setLineDash([5, 5]);
-                    ctx.beginPath();
-                    ctx.moveTo(this.position.x, this.position.y);
-                    ctx.lineTo(this.lord.position.x, this.lord.position.y);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-                }
-
-                if (this.combatTarget) {
-                    // 绘制争斗线
-                    ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
-                    ctx.beginPath();
-                    ctx.moveTo(this.position.x, this.position.y);
-                    ctx.lineTo(this.combatTarget.position.x, this.combatTarget.position.y);
-                    ctx.stroke();
-                }
-            }
-
             // 繁殖后代
             reproduce() {
                 // 只有能量充足且随机概率时繁殖
-                if (this.energy > 120 && Math.random() < 0.005 && !this.combatTarget) {
+                if (this.energy > 120 && Math.random() < 0.005 && !this.combatTarget && !this.escapeTarget) {
                     this.energy -= 60; // 繁殖消耗能量
 
                     const childDNA = { ...this.dna };
@@ -394,6 +394,75 @@
             }
 
             // =============================================
+            // 逃避系统
+            // =============================================
+
+            // 寻找威胁（比自己大三倍的生物）
+            findThreat() {
+                let closestThreat = null;
+                let closestDistance = Infinity;
+                const threatRadius = 100; // 威胁检测半径
+
+                // 限制每帧检查的威胁数量，提高性能
+                const maxChecks = Math.min(10, this.allMicrobes.length);
+                let checks = 0;
+
+                for (const other of this.allMicrobes) {
+                    if (other === this || other.dna.size < this.dna.size * 3) continue;
+
+                    checks++;
+                    if (checks > maxChecks) break;
+
+                    const dx = other.position.x - this.position.x;
+                    const dy = other.position.y - this.position.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < threatRadius && distance < closestDistance) {
+                        closestThreat = other;
+                        closestDistance = distance;
+                    }
+                }
+
+                return closestThreat;
+            }
+
+            // 逃离威胁
+            escapeFromThreat() {
+                if (!this.escapeTarget) return;
+
+                const dx = this.position.x - this.escapeTarget.position.x;
+                const dy = this.position.y - this.escapeTarget.position.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                // 如果威胁太远，停止逃避
+                if (distance > 150) {
+                    this.escapeTarget = null;
+                    this.escapeTimer = 0;
+                    return;
+                }
+
+                // 计算逃离方向
+                const escapeAngle = Math.atan2(dy, dx);
+
+                // 加速逃离（速度增加50%）
+                const escapeSpeed = this.dna.speed * 1.5;
+                this.velocity.x = Math.cos(escapeAngle) * escapeSpeed;
+                this.velocity.y = Math.sin(escapeAngle) * escapeSpeed;
+
+                // 更新位置
+                this.position.x += this.velocity.x;
+                this.position.y += this.velocity.y;
+
+                // 设置逃避计时器
+                this.escapeTimer = 60; // 逃避持续60帧
+
+                // 更新统计数据
+                if (this.escapeTimer === 60) { // 只在开始时计数
+                    window.lifePool.escapeEvents++;
+                }
+            }
+
+            // =============================================
             // 吞噬系统
             // =============================================
 
@@ -419,7 +488,6 @@
                     // 更新统计数据
                     window.lifePool.eatEvents++;
 
-                    console.log(`🦖 ${this.id} 吞噬了 ${other.id}，大小增加 ${sizeGain.toFixed(2)}`);
                     return true; // 吞噬成功
                 }
                 return false; // 无法吞噬
@@ -427,9 +495,15 @@
 
             // 检测与所有其他生物的碰撞
             checkAllCollisions() {
-                for (let i = 0; i < this.allMicrobes.length; i++) {
+                // 限制每帧检查的碰撞数量，提高性能
+                const maxChecks = Math.min(20, this.allMicrobes.length);
+                let checks = 0;
+
+                for (let i = 0; i < this.allMicrobes.length && checks < maxChecks; i++) {
                     const other = this.allMicrobes[i];
                     if (other === this) continue;
+
+                    checks++;
 
                     if (this.checkCollision(other)) {
                         // 尝试吞噬
@@ -461,8 +535,15 @@
                 let closestDistance = Infinity;
                 const followRadius = 50; // 跟随半径
 
+                // 限制每帧检查的领主数量，提高性能
+                const maxChecks = Math.min(10, this.allMicrobes.length);
+                let checks = 0;
+
                 for (const other of this.allMicrobes) {
                     if (other === this || other.dna.size <= this.dna.size) continue;
+
+                    checks++;
+                    if (checks > maxChecks) break;
 
                     const dx = other.position.x - this.position.x;
                     const dy = other.position.y - this.position.y;
@@ -526,6 +607,7 @@
             canStartCombatWith(other) {
                 if (this.combatCooldown > 0 || other.combatCooldown > 0) return false;
                 if (this.combatTarget || other.combatTarget) return false;
+                if (this.escapeTarget || other.escapeTarget) return false; // 逃避状态下不争斗
 
                 // 大小相似（在20%范围内）
                 const sizeRatio = this.dna.size / other.dna.size;
@@ -545,7 +627,6 @@
                 // 吸引附近好奇心强的生物
                 this.attractSpectators();
 
-                console.log(`⚔️ ${this.id} 开始与 ${target.id} 争斗`);
                 return true;
             }
 
@@ -593,16 +674,12 @@
                 this.energy -= 5;
                 target.energy -= 5;
 
-                console.log(`💥 ${this.id} 与 ${target.id} 碰撞，双方损失 ${sizeLoss.toFixed(2)} 大小`);
-
                 // 检查是否死亡
                 if (this.dna.size <= 1) {
                     this.energy = -1;
-                    console.log(`💀 ${this.id} 在争斗中死亡`);
                 }
                 if (target.dna.size <= 1) {
                     target.energy = -1;
-                    console.log(`💀 ${target.id} 在争斗中死亡`);
                 }
             }
 
@@ -614,8 +691,15 @@
             attractSpectators() {
                 const attractionRadius = 250; // 吸引范围
 
+                // 限制每帧吸引的围观者数量，提高性能
+                const maxAttractions = Math.min(5, this.allMicrobes.length);
+                let attractions = 0;
+
                 for (const other of this.allMicrobes) {
                     if (other === this || other === this.combatTarget) continue;
+
+                    attractions++;
+                    if (attractions > maxAttractions) break;
 
                     const dx = other.position.x - this.position.x;
                     const dy = other.position.y - this.position.y;
@@ -660,19 +744,21 @@
                 // 统计数据
                 this.eatEvents = 0;
                 this.combatEvents = 0;
+                this.escapeEvents = 0;
 
                 // 性能监控
                 this.fps = 0;
                 this.frameCount = 0;
                 this.lastFpsUpdate = 0;
 
+                // 性能优化
+                this.maxMicrobes = 150; // 限制最大生物数量
+                this.lastMicrobeCleanup = 0;
+
                 // 初始化
                 this.resizeCanvas();
                 this.setupEventListeners();
                 this.setupUI();
-
-                console.log('🌊 生命之池初始化完成');
-                console.log('🎨 现在你可以用鼠标在画布上绘制线条来创造生物了！');
 
                 // 启动动画循环
                 this.animate();
@@ -682,7 +768,6 @@
             resizeCanvas() {
                 this.canvas.width = window.innerWidth;
                 this.canvas.height = window.innerHeight;
-                console.log(`📐 画布大小调整为: ${this.canvas.width} x ${this.canvas.height}`);
             }
 
             // 设置事件监听器
@@ -718,7 +803,7 @@
                     this.microbes = [];
                     this.eatEvents = 0;
                     this.combatEvents = 0;
-                    console.log('🧹 池子已清空');
+                    this.escapeEvents = 0;
                 });
 
                 // 添加测试生物按钮
@@ -729,6 +814,11 @@
                 // 添加大型生物按钮
                 document.getElementById('addLargeBtn').addEventListener('click', () => {
                     this.addLargeMicrobe();
+                });
+
+                // 添加捕食者按钮
+                document.getElementById('addPredatorBtn').addEventListener('click', () => {
+                    this.addPredator();
                 });
             }
 
@@ -748,8 +838,6 @@
                     y: pos.y,
                     time: Date.now()
                 });
-
-                console.log('✏️ 开始绘制笔迹');
             }
 
             // 记录笔迹点
@@ -773,7 +861,6 @@
                 this.isDrawing = false;
 
                 if (this.currentStroke.length > 1) {
-                    console.log(`🎯 笔迹分析: ${this.currentStroke.length}个点`);
                     this.analyzeAndCreateMicrobes();
                 }
 
@@ -852,8 +939,6 @@
                 // 3. 计算密度特征
                 const density = stroke.length / Math.max(1, totalDistance);
 
-                console.log(`📊 笔迹特征 - 速度: ${avgSpeed.toFixed(2)}, 曲率: ${avgCurvature.toFixed(2)}, 密度: ${density.toFixed(2)}`);
-
                 // 根据特征创建生物
                 this.createMicrobesFromStroke(stroke, {
                     speed: avgSpeed,
@@ -871,13 +956,11 @@
                     curiosity: Math.min(1, Math.max(0, features.curvature * 3))
                 };
 
-                console.log('🧬 基础DNA:', baseDNA);
-
                 // 沿笔迹路径创建生物（每5个点创建一个）
                 const step = Math.max(1, Math.floor(stroke.length / 5));
                 let microbesCreated = 0;
 
-                for (let i = 0; i < stroke.length; i += step) {
+                for (let i = 0; i < stroke.length && this.microbes.length < this.maxMicrobes; i += step) {
                     const point = stroke[i];
 
                     // 为每个生物添加一些随机变异
@@ -893,8 +976,6 @@
                     this.microbes.push(microbe);
                     microbesCreated++;
                 }
-
-                console.log(`🐠 创造了 ${microbesCreated} 个新生物`);
             }
 
             // =============================================
@@ -903,7 +984,7 @@
 
             // 添加测试生物
             addTestMicrobes() {
-                const count = 10;
+                const count = Math.min(10, this.maxMicrobes - this.microbes.length);
                 for (let i = 0; i < count; i++) {
                     const x = Math.random() * this.canvas.width;
                     const y = Math.random() * this.canvas.height;
@@ -917,11 +998,12 @@
 
                     this.microbes.push(new Microbe(x, y, testDNA));
                 }
-                console.log(`🧪 添加了 ${count} 个测试生物`);
             }
 
             // 添加大型生物
             addLargeMicrobe() {
+                if (this.microbes.length >= this.maxMicrobes) return;
+
                 const x = Math.random() * this.canvas.width;
                 const y = Math.random() * this.canvas.height;
 
@@ -933,7 +1015,24 @@
                 };
 
                 this.microbes.push(new Microbe(x, y, largeDNA));
-                console.log(`🦖 添加了大型生物，大小: ${largeDNA.size.toFixed(1)}`);
+            }
+
+            // 添加捕食者（非常大的生物）
+            addPredator() {
+                if (this.microbes.length >= this.maxMicrobes) return;
+
+                const x = Math.random() * this.canvas.width;
+                const y = Math.random() * this.canvas.height;
+
+                const predatorDNA = {
+                    speed: 2.0,
+                    size: 15 + Math.random() * 5,
+                    social: 0.1,
+                    curiosity: 0.1,
+                    color: 'hsl(0, 70%, 50%)' // 红色捕食者
+                };
+
+                this.microbes.push(new Microbe(x, y, predatorDNA));
             }
 
             // =============================================
@@ -952,6 +1051,12 @@
                 // 更新和绘制所有生物
                 this.updateMicrobes();
 
+                // 定期清理死亡生物引用
+                if (Date.now() - this.lastMicrobeCleanup > 1000) {
+                    this.cleanupMicrobeReferences();
+                    this.lastMicrobeCleanup = Date.now();
+                }
+
                 // 更新UI
                 this.updateUI();
 
@@ -965,8 +1070,6 @@
                 this.microbes = this.microbes.filter(microbe => {
                     // 清理死亡生物的引用
                     if (microbe.energy <= 0) {
-                        // 通知其他生物这个生物已死亡
-                        this.notifyMicrobeDeath(microbe);
                         return false;
                     }
 
@@ -974,8 +1077,8 @@
                     if (isAlive) {
                         microbe.draw(this.ctx);
 
-                        // 处理繁殖（只有不在争斗中的生物可以繁殖）
-                        if (!microbe.combatTarget) {
+                        // 处理繁殖（只有不在争斗或逃避中的生物可以繁殖）
+                        if (!microbe.combatTarget && !microbe.escapeTarget && this.microbes.length < this.maxMicrobes) {
                             const child = microbe.reproduce();
                             if (child) {
                                 this.microbes.push(child);
@@ -986,18 +1089,24 @@
                 });
             }
 
-            // 通知生物死亡
-            notifyMicrobeDeath(deadMicrobe) {
+            // 清理生物引用（防止内存泄漏）
+            cleanupMicrobeReferences() {
                 for (const microbe of this.microbes) {
-                    // 清理领主引用
-                    if (microbe.lord === deadMicrobe) {
+                    // 清理无效的领主引用
+                    if (microbe.lord && (microbe.lord.energy <= 0 || !this.microbes.includes(microbe.lord))) {
                         microbe.lord = null;
                         microbe.followOffset = { x: 0, y: 0 };
                     }
 
-                    // 清理争斗目标引用
-                    if (microbe.combatTarget === deadMicrobe) {
+                    // 清理无效的争斗目标引用
+                    if (microbe.combatTarget && (microbe.combatTarget.energy <= 0 || !this.microbes.includes(microbe.combatTarget))) {
                         microbe.combatTarget = null;
+                    }
+
+                    // 清理无效的逃避目标引用
+                    if (microbe.escapeTarget && (microbe.escapeTarget.energy <= 0 || !this.microbes.includes(microbe.escapeTarget))) {
+                        microbe.escapeTarget = null;
+                        microbe.escapeTimer = 0;
                     }
                 }
             }
@@ -1020,6 +1129,7 @@
                 document.getElementById('fps').textContent = this.fps;
                 document.getElementById('eatCount').textContent = this.eatEvents;
                 document.getElementById('combatCount').textContent = this.combatEvents;
+                document.getElementById('escapeCount').textContent = this.escapeEvents;
             }
         }
 
@@ -1029,12 +1139,10 @@
 
         // 当页面加载完成后启动应用
         window.addEventListener('load', () => {
-            console.log('🚀 启动生命之池应用...');
             const lifePool = new LifePool();
 
             // 将应用实例挂载到window以便调试
             window.lifePool = lifePool;
-            console.log('🔧 调试提示: 在控制台中使用 "lifePool" 来访问应用实例');
         });
     </script>
 </body>
