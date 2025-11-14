@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>生命之池 - 互动生态系统</title>
+    <title>生命之池 - 鱼群生态系统</title>
     <style>
         * {
             margin: 0;
@@ -100,7 +100,7 @@
         <canvas id="poolCanvas"></canvas>
         <div id="ui">
             <div class="panel">
-                <h3>生命之池</h3>
+                <h3>生命之池 - 鱼群模拟</h3>
                 <div class="stats">
                     <div>生物数量: <span id="microbeCount">0</span></div>
                     <div>帧率: <span id="fps">0</span></div>
@@ -110,14 +110,13 @@
                 </div>
                 <div class="controls">
                     <button id="clearBtn">清空池子</button>
-                    <button id="addTestBtn">添加测试生物</button>
+                    <button id="addTestBtn">添加鱼群</button>
                     <button id="addLargeBtn">添加大型生物</button>
-                    <button id="addPredatorBtn">添加捕食者</button>
                 </div>
                 <div class="instructions">
-                    <p>🎨 用鼠标绘制线条来创造生物</p>
+                    <p>🎨 用鼠标绘制线条来创造鱼群</p>
                     <p>🦖 大生物会吞噬小生物</p>
-                    <p>👑 小生物会跟随附近的大生物</p>
+                    <p>🐟 小生物会形成鱼群</p>
                     <p>⚔️ 同样大小的生物会争斗</p>
                     <p>🔍 好奇心强的生物会被争斗吸引</p>
                     <p>🏃 生物会逃离比自己大三倍的生物</p>
@@ -141,11 +140,14 @@
 
                 // DNA属性（生物特征）
                 this.dna = {
-                    speed: dna.speed || Math.random() * 3 + 0.5,
-                    size: dna.size || Math.random() * 6 + 2,
+                    speed: dna.speed || Math.random() * 2 + 1,
+                    size: dna.size || Math.random() * 4 + 2,
                     color: dna.color || this.generateColor(),
                     social: dna.social || Math.random(),
                     curiosity: dna.curiosity || Math.random(),
+                    alignment: dna.alignment || Math.random(), // 对齐倾向
+                    cohesion: dna.cohesion || Math.random(),   // 凝聚倾向
+                    separation: dna.separation || Math.random(), // 分离倾向
                     ...dna
                 };
 
@@ -167,13 +169,16 @@
                 this.escapeTarget = null;
                 this.escapeTimer = 0;
 
+                // 鱼群系统
+                this.flockMates = [];
+
                 // 唯一标识符
                 this.id = Math.random().toString(36).substr(2, 9);
             }
 
             // 生成随机颜色
             generateColor() {
-                const hue = Math.random() * 360;
+                const hue = Math.random() * 60 + 180; // 蓝色到青色范围
                 return `hsl(${hue}, 70%, 60%)`;
             }
 
@@ -205,31 +210,34 @@
                     this.followLord();
                 }
 
-                // 原有的移动逻辑（如果没有跟随或争斗或逃避）
-                if (!this.lord && !this.combatTarget && !this.escapeTarget) {
-                    this.position.x += this.velocity.x * this.dna.speed;
-                    this.position.y += this.velocity.y * this.dna.speed;
-                } else if (this.lord && !this.escapeTarget) {
-                    // 跟随时的移动（速度稍慢）
-                    this.position.x += this.velocity.x * this.dna.speed * 0.7;
-                    this.position.y += this.velocity.y * this.dna.speed * 0.7;
+                // 如果没有逃避、争斗或跟随，应用鱼群行为
+                if (!this.escapeTarget && !this.combatTarget && !this.lord) {
+                    this.applyFlocking();
                 }
+
+                // 更新位置
+                this.position.x += this.velocity.x * this.dna.speed;
+                this.position.y += this.velocity.y * this.dna.speed;
 
                 // 检测碰撞（包括争斗）
                 this.checkAllCollisions();
 
-                // 边界检测和反弹
-                if (this.position.x < 0 || this.position.x > canvas.width) {
-                    this.velocity.x *= -1;
-                    this.position.x = Math.max(0, Math.min(canvas.width, this.position.x));
+                // 边界检测和环绕（而不是反弹）
+                if (this.position.x < -this.dna.size) {
+                    this.position.x = canvas.width + this.dna.size;
                 }
-                if (this.position.y < 0 || this.position.y > canvas.height) {
-                    this.velocity.y *= -1;
-                    this.position.y = Math.max(0, Math.min(canvas.height, this.position.y));
+                if (this.position.x > canvas.width + this.dna.size) {
+                    this.position.x = -this.dna.size;
+                }
+                if (this.position.y < -this.dna.size) {
+                    this.position.y = canvas.height + this.dna.size;
+                }
+                if (this.position.y > canvas.height + this.dna.size) {
+                    this.position.y = -this.dna.size;
                 }
 
                 // 随机方向变化（受好奇心影响）
-                if (Math.random() < 0.02 * this.dna.curiosity && !this.escapeTarget) {
+                if (Math.random() < 0.01 * this.dna.curiosity && !this.escapeTarget) {
                     this.velocity.x += (Math.random() - 0.5) * 0.5;
                     this.velocity.y += (Math.random() - 0.5) * 0.5;
                 }
@@ -264,42 +272,13 @@
                 const alpha = 0.3 + this.dna.social * 0.7;
                 ctx.fillStyle = color.replace(')', `, ${alpha})`).replace('hsl', 'hsla');
 
-                // 根据好奇心决定形状复杂度
-                if (this.dna.curiosity > 0.7) {
-                    // 高好奇心的生物有星形外观
-                    this.drawStar(ctx, this.position.x, this.position.y, this.dna.size);
-                } else if (this.dna.social > 0.7) {
-                    // 高社交性的生物有三角形外观（指向其他生物）
-                    this.drawTriangle(ctx, this.position.x, this.position.y, this.dna.size);
-                } else {
-                    // 普通生物保持圆形
-                    ctx.beginPath();
-                    ctx.arc(this.position.x, this.position.y, this.dna.size, 0, Math.PI * 2);
-                    ctx.fill();
-                }
+                // 绘制鱼形
+                this.drawFish(ctx, this.position.x, this.position.y, this.dna.size);
 
                 // 速度指示器 - 根据速度改变颜色
                 let speedColor = this.dna.speed > 2 ? '#ff4444' : '#44ff44';
                 if (this.escapeTarget) {
                     speedColor = '#ff0000'; // 逃避状态为红色
-                }
-                ctx.strokeStyle = speedColor;
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(this.position.x, this.position.y);
-                ctx.lineTo(
-                    this.position.x - this.velocity.x * 10,
-                    this.position.y - this.velocity.y * 10
-                );
-                ctx.stroke();
-
-                // 能量显示 - 低能量时显示红色光环
-                if (this.energy < 50) {
-                    ctx.strokeStyle = `rgba(255, ${Math.floor(this.energy * 2)}, 0, 0.8)`;
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.arc(this.position.x, this.position.y, this.dna.size + 4, 0, Math.PI * 2);
-                    ctx.stroke();
                 }
 
                 // 绘制感叹号（如果正在显示）
@@ -308,41 +287,39 @@
                 }
             }
 
-            // 绘制星形方法
-            drawStar(ctx, x, y, size) {
-                ctx.beginPath();
-                for (let i = 0; i < 8; i++) {
-                    const angle = (i * Math.PI) / 4;
-                    const radius = i % 2 === 0 ? size : size * 0.4;
-                    const px = x + Math.cos(angle) * radius;
-                    const py = y + Math.sin(angle) * radius;
-                    if (i === 0) {
-                        ctx.moveTo(px, py);
-                    } else {
-                        ctx.lineTo(px, py);
-                    }
-                }
-                ctx.closePath();
-                ctx.fill();
-            }
-
-            // 绘制三角形方法
-            drawTriangle(ctx, x, y, size) {
-                ctx.beginPath();
-                // 三角形指向移动方向
+            // 绘制鱼形
+            drawFish(ctx, x, y, size) {
                 const angle = Math.atan2(this.velocity.y, this.velocity.x);
-                for (let i = 0; i < 3; i++) {
-                    const vertexAngle = angle + (i * 2 * Math.PI) / 3;
-                    const px = x + Math.cos(vertexAngle) * size;
-                    const py = y + Math.sin(vertexAngle) * size;
-                    if (i === 0) {
-                        ctx.moveTo(px, py);
-                    } else {
-                        ctx.lineTo(px, py);
-                    }
-                }
+
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(angle);
+
+                // 鱼身
+                ctx.beginPath();
+                ctx.ellipse(0, 0, size, size * 0.6, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 鱼尾
+                ctx.beginPath();
+                ctx.moveTo(-size * 0.8, 0);
+                ctx.lineTo(-size * 1.5, -size * 0.5);
+                ctx.lineTo(-size * 1.5, size * 0.5);
                 ctx.closePath();
                 ctx.fill();
+
+                // 鱼眼
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.arc(size * 0.5, -size * 0.2, size * 0.2, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = 'black';
+                ctx.beginPath();
+                ctx.arc(size * 0.6, -size * 0.2, size * 0.1, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
             }
 
             // 绘制感叹号
@@ -357,40 +334,176 @@
             // 繁殖后代
             reproduce() {
                 // 只有能量充足且随机概率时繁殖
-                if (this.energy > 120 && Math.random() < 0.005 && !this.combatTarget && !this.escapeTarget) {
+                if (this.energy > 120 && Math.random() < 0.003 && !this.combatTarget && !this.escapeTarget) {
                     this.energy -= 60; // 繁殖消耗能量
 
                     const childDNA = { ...this.dna };
 
                     // 引入随机变异
-                    childDNA.speed *= (0.7 + Math.random() * 0.6);
-                    childDNA.size *= (0.7 + Math.random() * 0.6);
-                    childDNA.social += (Math.random() - 0.5) * 0.4;
-                    childDNA.curiosity += (Math.random() - 0.5) * 0.4;
+                    childDNA.speed *= (0.8 + Math.random() * 0.4);
+                    childDNA.size *= (0.8 + Math.random() * 0.4);
+                    childDNA.social += (Math.random() - 0.5) * 0.2;
+                    childDNA.curiosity += (Math.random() - 0.5) * 0.2;
+                    childDNA.alignment += (Math.random() - 0.5) * 0.2;
+                    childDNA.cohesion += (Math.random() - 0.5) * 0.2;
+                    childDNA.separation += (Math.random() - 0.5) * 0.2;
 
                     // 限制在合理范围内
-                    childDNA.speed = Math.max(0.5, Math.min(4, childDNA.speed));
-                    childDNA.size = Math.max(1, Math.min(10, childDNA.size));
+                    childDNA.speed = Math.max(0.5, Math.min(3, childDNA.speed));
+                    childDNA.size = Math.max(1, Math.min(8, childDNA.size));
                     childDNA.social = Math.max(0, Math.min(1, childDNA.social));
                     childDNA.curiosity = Math.max(0, Math.min(1, childDNA.curiosity));
+                    childDNA.alignment = Math.max(0, Math.min(1, childDNA.alignment));
+                    childDNA.cohesion = Math.max(0, Math.min(1, childDNA.cohesion));
+                    childDNA.separation = Math.max(0, Math.min(1, childDNA.separation));
 
-                    // 颜色变异（30%概率）
-                    if (Math.random() < 0.3) {
+                    // 颜色变异（20%概率）
+                    if (Math.random() < 0.2) {
                         const currentHue = parseInt(childDNA.color.match(/\d+/)[0]);
-                        const newHue = (currentHue + (Math.random() - 0.5) * 60 + 360) % 360;
+                        const newHue = (currentHue + (Math.random() - 0.5) * 30 + 360) % 360;
                         childDNA.color = `hsl(${newHue}, 70%, 60%)`;
                     }
 
                     // 在父母附近创建后代
                     const child = new Microbe(
-                        this.position.x + (Math.random() - 0.5) * 30,
-                        this.position.y + (Math.random() - 0.5) * 30,
+                        this.position.x + (Math.random() - 0.5) * 20,
+                        this.position.y + (Math.random() - 0.5) * 20,
                         childDNA
                     );
 
                     return child;
                 }
                 return null;
+            }
+
+            // =============================================
+            // 鱼群系统
+            // =============================================
+
+            // 应用鱼群行为
+            applyFlocking() {
+                const neighbors = this.findNeighbors(80); // 寻找邻居
+                if (neighbors.length === 0) return;
+
+                // 计算分离、对齐和凝聚的力
+                const separation = this.calculateSeparation(neighbors);
+                const alignment = this.calculateAlignment(neighbors);
+                const cohesion = this.calculateCohesion(neighbors);
+
+                // 应用这些力（根据DNA权重）
+                this.velocity.x += separation.x * this.dna.separation * 0.1;
+                this.velocity.y += separation.y * this.dna.separation * 0.1;
+
+                this.velocity.x += alignment.x * this.dna.alignment * 0.1;
+                this.velocity.y += alignment.y * this.dna.alignment * 0.1;
+
+                this.velocity.x += cohesion.x * this.dna.cohesion * 0.05;
+                this.velocity.y += cohesion.y * this.dna.cohesion * 0.05;
+            }
+
+            // 寻找邻居
+            findNeighbors(radius) {
+                const neighbors = [];
+                const maxChecks = Math.min(15, this.allMicrobes.length);
+                let checks = 0;
+
+                for (const other of this.allMicrobes) {
+                    if (other === this) continue;
+
+                    checks++;
+                    if (checks > maxChecks) break;
+
+                    const dx = other.position.x - this.position.x;
+                    const dy = other.position.y - this.position.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < radius) {
+                        neighbors.push(other);
+                    }
+                }
+
+                return neighbors;
+            }
+
+            // 计算分离力（避免与邻居太近）
+            calculateSeparation(neighbors) {
+                const force = { x: 0, y: 0 };
+                let count = 0;
+
+                for (const other of neighbors) {
+                    const dx = this.position.x - other.position.x;
+                    const dy = this.position.y - other.position.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance > 0 && distance < 30) {
+                        force.x += dx / distance;
+                        force.y += dy / distance;
+                        count++;
+                    }
+                }
+
+                if (count > 0) {
+                    force.x /= count;
+                    force.y /= count;
+                }
+
+                return force;
+            }
+
+            // 计算对齐力（与邻居平均方向对齐）
+            calculateAlignment(neighbors) {
+                const force = { x: 0, y: 0 };
+                let count = 0;
+
+                for (const other of neighbors) {
+                    force.x += other.velocity.x;
+                    force.y += other.velocity.y;
+                    count++;
+                }
+
+                if (count > 0) {
+                    force.x /= count;
+                    force.y /= count;
+
+                    // 归一化
+                    const magnitude = Math.sqrt(force.x * force.x + force.y * force.y);
+                    if (magnitude > 0) {
+                        force.x /= magnitude;
+                        force.y /= magnitude;
+                    }
+                }
+
+                return force;
+            }
+
+            // 计算凝聚力（向邻居平均位置移动）
+            calculateCohesion(neighbors) {
+                const force = { x: 0, y: 0 };
+                let count = 0;
+
+                for (const other of neighbors) {
+                    force.x += other.position.x;
+                    force.y += other.position.y;
+                    count++;
+                }
+
+                if (count > 0) {
+                    force.x /= count;
+                    force.y /= count;
+
+                    // 指向平均位置
+                    force.x -= this.position.x;
+                    force.y -= this.position.y;
+
+                    // 归一化
+                    const magnitude = Math.sqrt(force.x * force.x + force.y * force.y);
+                    if (magnitude > 0) {
+                        force.x /= magnitude;
+                        force.y /= magnitude;
+                    }
+                }
+
+                return force;
             }
 
             // =============================================
@@ -401,7 +514,7 @@
             findThreat() {
                 let closestThreat = null;
                 let closestDistance = Infinity;
-                const threatRadius = 100; // 威胁检测半径
+                const threatRadius = 120; // 威胁检测半径
 
                 // 限制每帧检查的威胁数量，提高性能
                 const maxChecks = Math.min(10, this.allMicrobes.length);
@@ -448,10 +561,6 @@
                 const escapeSpeed = this.dna.speed * 1.5;
                 this.velocity.x = Math.cos(escapeAngle) * escapeSpeed;
                 this.velocity.y = Math.sin(escapeAngle) * escapeSpeed;
-
-                // 更新位置
-                this.position.x += this.velocity.x;
-                this.position.y += this.velocity.y;
 
                 // 设置逃避计时器
                 this.escapeTimer = 60; // 逃避持续60帧
@@ -533,7 +642,7 @@
             findLord() {
                 let closestLord = null;
                 let closestDistance = Infinity;
-                const followRadius = 50; // 跟随半径
+                const followRadius = 80; // 跟随半径
 
                 // 限制每帧检查的领主数量，提高性能
                 const maxChecks = Math.min(10, this.allMicrobes.length);
@@ -570,7 +679,7 @@
                 // 如果还没有偏移量，生成一个
                 if (this.followOffset.x === 0 && this.followOffset.y === 0) {
                     const offsetAngle = angle + Math.PI + (Math.random() - 0.5) * spread;
-                    const distance = 30 + Math.random() * 20; // 跟随距离
+                    const distance = 40 + Math.random() * 20; // 跟随距离
                     this.followOffset = {
                         x: Math.cos(offsetAngle) * distance,
                         y: Math.sin(offsetAngle) * distance
@@ -645,8 +754,6 @@
                     // 向目标移动
                     this.velocity.x = (dx / distance) * this.dna.speed;
                     this.velocity.y = (dy / distance) * this.dna.speed;
-                    this.position.x += this.velocity.x;
-                    this.position.y += this.velocity.y;
                 } else {
                     // 发生碰撞
                     this.resolveCombatCollision(target);
@@ -689,7 +796,7 @@
 
             // 吸引围观者
             attractSpectators() {
-                const attractionRadius = 250; // 吸引范围
+                const attractionRadius = 200; // 吸引范围
 
                 // 限制每帧吸引的围观者数量，提高性能
                 const maxAttractions = Math.min(5, this.allMicrobes.length);
@@ -713,8 +820,8 @@
                         if (distance > 80) {
                             const moveX = (dx / distance) * other.dna.speed * 0.5;
                             const moveY = (dy / distance) * other.dna.speed * 0.5;
-                            other.position.x -= moveX;
-                            other.position.y -= moveY;
+                            other.velocity.x += moveX * 0.1;
+                            other.velocity.y += moveY * 0.1;
                         }
                     }
                 }
@@ -752,7 +859,7 @@
                 this.lastFpsUpdate = 0;
 
                 // 性能优化
-                this.maxMicrobes = 150; // 限制最大生物数量
+                this.maxMicrobes = 200; // 限制最大生物数量
                 this.lastMicrobeCleanup = 0;
 
                 // 初始化
@@ -808,7 +915,7 @@
 
                 // 添加测试生物按钮
                 document.getElementById('addTestBtn').addEventListener('click', () => {
-                    this.addTestMicrobes();
+                    this.addSchoolOfFish();
                 });
 
                 // 添加大型生物按钮
@@ -951,13 +1058,16 @@
             createMicrobesFromStroke(stroke, features) {
                 // 将笔迹特征映射到DNA参数
                 const baseDNA = {
-                    speed: Math.min(3, Math.max(0.5, features.speed * 100)),
+                    speed: Math.min(2.5, Math.max(0.8, features.speed * 50)),
                     social: Math.min(1, Math.max(0, features.density * 2)),
-                    curiosity: Math.min(1, Math.max(0, features.curvature * 3))
+                    curiosity: Math.min(1, Math.max(0, features.curvature * 3)),
+                    alignment: 0.7 + Math.random() * 0.3,
+                    cohesion: 0.7 + Math.random() * 0.3,
+                    separation: 0.5 + Math.random() * 0.5
                 };
 
-                // 沿笔迹路径创建生物（每5个点创建一个）
-                const step = Math.max(1, Math.floor(stroke.length / 5));
+                // 沿笔迹路径创建生物（每3个点创建一个）
+                const step = Math.max(1, Math.floor(stroke.length / 3));
                 let microbesCreated = 0;
 
                 for (let i = 0; i < stroke.length && this.microbes.length < this.maxMicrobes; i += step) {
@@ -966,8 +1076,8 @@
                     // 为每个生物添加一些随机变异
                     const dnaVariation = {
                         ...baseDNA,
-                        speed: baseDNA.speed * (0.8 + Math.random() * 0.4),
-                        size: 2 + Math.random() * 3,
+                        speed: baseDNA.speed * (0.9 + Math.random() * 0.2),
+                        size: 2 + Math.random() * 2,
                         social: Math.max(0, Math.min(1, baseDNA.social + (Math.random() - 0.5) * 0.2)),
                         curiosity: Math.max(0, Math.min(1, baseDNA.curiosity + (Math.random() - 0.5) * 0.2))
                     };
@@ -982,21 +1092,29 @@
             // 测试功能
             // =============================================
 
-            // 添加测试生物
-            addTestMicrobes() {
-                const count = Math.min(10, this.maxMicrobes - this.microbes.length);
-                for (let i = 0; i < count; i++) {
-                    const x = Math.random() * this.canvas.width;
-                    const y = Math.random() * this.canvas.height;
+            // 添加鱼群
+            addSchoolOfFish() {
+                const count = Math.min(20, this.maxMicrobes - this.microbes.length);
+                const centerX = this.canvas.width / 2;
+                const centerY = this.canvas.height / 2;
 
-                    const testDNA = {
-                        speed: Math.random() * 2 + 0.5,
-                        size: Math.random() * 3 + 2,
-                        social: Math.random(),
-                        curiosity: Math.random()
+                for (let i = 0; i < count; i++) {
+                    const angle = (i / count) * Math.PI * 2;
+                    const radius = 50 + Math.random() * 30;
+                    const x = centerX + Math.cos(angle) * radius;
+                    const y = centerY + Math.sin(angle) * radius;
+
+                    const fishDNA = {
+                        speed: 1.5 + Math.random() * 0.5,
+                        size: 2 + Math.random() * 2,
+                        social: 0.8 + Math.random() * 0.2,
+                        curiosity: 0.3 + Math.random() * 0.3,
+                        alignment: 0.7 + Math.random() * 0.3,
+                        cohesion: 0.7 + Math.random() * 0.3,
+                        separation: 0.5 + Math.random() * 0.3
                     };
 
-                    this.microbes.push(new Microbe(x, y, testDNA));
+                    this.microbes.push(new Microbe(x, y, fishDNA));
                 }
             }
 
@@ -1008,31 +1126,16 @@
                 const y = Math.random() * this.canvas.height;
 
                 const largeDNA = {
-                    speed: 1.5,
+                    speed: 1.2,
                     size: 8 + Math.random() * 4,
                     social: 0.2,
-                    curiosity: 0.1
+                    curiosity: 0.1,
+                    alignment: 0.1,
+                    cohesion: 0.1,
+                    separation: 0.8
                 };
 
                 this.microbes.push(new Microbe(x, y, largeDNA));
-            }
-
-            // 添加捕食者（非常大的生物）
-            addPredator() {
-                if (this.microbes.length >= this.maxMicrobes) return;
-
-                const x = Math.random() * this.canvas.width;
-                const y = Math.random() * this.canvas.height;
-
-                const predatorDNA = {
-                    speed: 2.0,
-                    size: 15 + Math.random() * 5,
-                    social: 0.1,
-                    curiosity: 0.1,
-                    color: 'hsl(0, 70%, 50%)' // 红色捕食者
-                };
-
-                this.microbes.push(new Microbe(x, y, predatorDNA));
             }
 
             // =============================================
@@ -1044,8 +1147,8 @@
                 // 计算FPS
                 this.calculateFPS();
 
-                // 清空画布（使用半透明填充创造拖尾效果）
-                this.ctx.fillStyle = 'rgba(10, 20, 40, 0.1)';
+                // 完全清空画布（没有拖尾效果）
+                this.ctx.fillStyle = '#0a1428';
                 this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
                 // 更新和绘制所有生物
