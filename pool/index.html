@@ -906,7 +906,7 @@
                 let checks = 0;
 
                 for (const other of this.allMicrobes) {
-                    if (other === this || other.dna.size < this.dna.size * 3) continue;
+                    if (other === this || other.dna.size < this.dna.size ) continue;
 
                     checks++;
                     if (checks > maxChecks) break;
