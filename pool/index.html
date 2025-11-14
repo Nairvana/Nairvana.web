@@ -915,28 +915,36 @@
             }
 
             // 吞噬其他生物
-            eat(other) {
-                // 捕食者可以吞噬比自己稍大的生物
-                const sizeThreshold = this.type === 'predator' ? 1.1 : 1.2;
+           // 在 eat 方法中找到这部分代码，并进行修改
+        eat(other) {
+            // 捕食者可以吞噬比自己稍大的生物
+            const sizeThreshold = this.type === 'predator' ? 1.1 : 1.2;
 
-                if (this.dna.size > other.dna.size * sizeThreshold) { // 大小差异足够大才能吞噬
-                    // 增加自身大小和能量
-                    const sizeGain = other.dna.size * 0.3;
-                    this.dna.size += sizeGain;
-                    this.energy += other.energy * 0.8;
+            if (this.dna.size > other.dna.size * sizeThreshold) { // 大小差异足够大才能吞噬
+                // 计算大小增益
+                let sizeGain = other.dna.size * 0.3;
 
-                    // 捕食者获得更多能量
-                    if (this.type === 'predator') {
-                        this.energy += 20;
-                    }
-
-                    // 更新统计数据
-                    window.lifePool.eatEvents++;
-
-                    return true; // 吞噬成功
+                // 如果是鲨鱼，增长速度减半
+                if (this.type === 'predator') {
+                    sizeGain *= 0.5; // 鲨鱼的大小增长减半
                 }
-                return false; // 无法吞噬
+
+                // 增加自身大小和能量
+                this.dna.size += sizeGain;
+                this.energy += other.energy * 0.8;
+
+                // 捕食者获得更多能量
+                if (this.type === 'predator') {
+                    this.energy += 20;
+                }
+
+                // 更新统计数据
+                window.lifePool.eatEvents++;
+
+                return true; // 吞噬成功
             }
+            return false; // 无法吞噬
+        }
 
             // 检测与所有其他生物的碰撞
             checkAllCollisions() {
