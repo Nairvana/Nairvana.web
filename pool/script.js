@@ -63,43 +63,193 @@ class LifePool {
         });
     }
     
-    // 在 setupUI 方法中添加以下代码
+    // 设置UI交互
     setupUI() {
         // 清空按钮
         document.getElementById('clearBtn').addEventListener('click', () => {
             this.microbes = [];
-            this.energyPoints = [];
-            this.eatEvents = 0;
-            this.combatEvents = 0;
-            this.escapeEvents = 0;
+            console.log('🧹 池子已清空');
         });
-
+        
         // 添加测试生物按钮
         document.getElementById('addTestBtn').addEventListener('click', () => {
-            this.addSchoolOfFish();
-        });
-
-        // 添加捕食者按钮
-        document.getElementById('addPredatorBtn').addEventListener('click', () => {
-            this.addPredators();
-        });
-
-        // 侧边栏收起/展开功能
-        document.getElementById('togglePanel').addEventListener('click', (e) => {
-            e.stopPropagation();
-            const panel = document.querySelector('.panel');
-            panel.classList.toggle('collapsed');
-        });
-
-        // 点击标题也可以收起/展开
-        document.querySelector('.panel-header').addEventListener('click', (e) => {
-            if (e.target.id !== 'togglePanel') {
-                const panel = document.querySelector('.panel');
-                panel.classList.toggle('collapsed');
-            }
+            this.addTestMicrobes();
         });
     }
-
+    
+    // =============================================
+    // 笔迹交互系统
+    // =============================================
+    
+    // 开始绘制笔迹
+    startStroke(e) {
+        this.isDrawing = true;
+        this.currentStroke = [];
+        this.strokeStartTime = Date.now();
+        
+        const pos = this.getMousePosition(e);
+        this.currentStroke.push({
+            x: pos.x,
+            y: pos.y,
+            time: Date.now()
+        });
+        
+        console.log('✏️ 开始绘制笔迹');
+    }
+    
+    // 记录笔迹点
+    recordStroke(e) {
+        if (!this.isDrawing) return;
+        
+        const pos = this.getMousePosition(e);
+        this.currentStroke.push({
+            x: pos.x,
+            y: pos.y,
+            time: Date.now()
+        });
+        
+        // 实时显示笔迹
+        this.drawCurrentStroke();
+    }
+    
+    // 结束绘制笔迹
+    endStroke() {
+        if (!this.isDrawing) return;
+        this.isDrawing = false;
+        
+        if (this.currentStroke.length > 1) {
+            console.log(`🎯 笔迹分析: ${this.currentStroke.length}个点`);
+            this.analyzeAndCreateMicrobes();
+        }
+        
+        this.currentStroke = [];
+    }
+    
+    // 获取鼠标位置（考虑画布偏移）
+    getMousePosition(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        return {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        };
+    }
+    
+    // 绘制当前笔迹（实时反馈）
+    drawCurrentStroke() {
+        if (this.currentStroke.length < 2) return;
+        
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+        this.ctx.lineWidth = 3;
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+        
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.currentStroke[0].x, this.currentStroke[0].y);
+        
+        for (let i = 1; i < this.currentStroke.length; i++) {
+            this.ctx.lineTo(this.currentStroke[i].x, this.currentStroke[i].y);
+        }
+        this.ctx.stroke();
+    }
+    
+    // =============================================
+    // 笔迹分析与生物创建
+    // =============================================
+    
+    // 分析笔迹并创建生物
+    analyzeAndCreateMicrobes() {
+        const stroke = this.currentStroke;
+        const duration = stroke[stroke.length - 1].time - stroke[0].time;
+        
+        if (duration === 0) return; // 防止除以零
+        
+        // 1. 计算速度特征
+        let totalDistance = 0;
+        for (let i = 1; i < stroke.length; i++) {
+            const dx = stroke[i].x - stroke[i-1].x;
+            const dy = stroke[i].y - stroke[i-1].y;
+            totalDistance += Math.sqrt(dx * dx + dy * dy);
+        }
+        const avgSpeed = totalDistance / duration;
+        
+        // 2. 计算曲率特征
+        let totalCurvature = 0;
+        let curvaturePoints = 0;
+        
+        for (let i = 1; i < stroke.length - 1; i++) {
+            const dx1 = stroke[i].x - stroke[i-1].x;
+            const dy1 = stroke[i].y - stroke[i-1].y;
+            const dx2 = stroke[i+1].x - stroke[i].x;
+            const dy2 = stroke[i+1].y - stroke[i].y;
+            
+            if (dx1 !== 0 || dy1 !== 0) {
+                const angle1 = Math.atan2(dy1, dx1);
+                const angle2 = Math.atan2(dy2, dx2);
+                let angleDiff = angle2 - angle1;
+                
+                // 标准化角度差到 [-PI, PI]
+                if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+                
+                totalCurvature += Math.abs(angleDiff);
+                curvaturePoints++;
+            }
+        }
+        
+        const avgCurvature = curvaturePoints > 0 ? totalCurvature / curvaturePoints : 0;
+        
+        // 3. 计算密度特征
+        const density = stroke.length / Math.max(1, totalDistance);
+        
+        console.log(`📊 笔迹特征 - 速度: ${avgSpeed.toFixed(2)}, 曲率: ${avgCurvature.toFixed(2)}, 密度: ${density.toFixed(2)}`);
+        
+        // 根据特征创建生物
+        this.createMicrobesFromStroke(stroke, {
+            speed: avgSpeed,
+            curvature: avgCurvature,
+            density: density
+        });
+    }
+    
+    // 根据笔迹特征创建生物
+    createMicrobesFromStroke(stroke, features) {
+        // 将笔迹特征映射到DNA参数
+        const baseDNA = {
+            speed: Math.min(3, Math.max(0.5, features.speed * 100)), // 速度映射
+            social: Math.min(1, Math.max(0, features.density * 2)),  // 密度映射到社交性
+            curiosity: Math.min(1, Math.max(0, features.curvature * 3)) // 曲率映射到好奇心
+        };
+        
+        console.log('🧬 基础DNA:', baseDNA);
+        
+        // 沿笔迹路径创建生物（每5个点创建一个）
+        const step = Math.max(1, Math.floor(stroke.length / 5));
+        let microbesCreated = 0;
+        
+        for (let i = 0; i < stroke.length; i += step) {
+            const point = stroke[i];
+            
+            // 为每个生物添加一些随机变异
+            const dnaVariation = {
+                ...baseDNA,
+                speed: baseDNA.speed * (0.8 + Math.random() * 0.4),
+                size: 2 + Math.random() * 3,
+                social: Math.max(0, Math.min(1, baseDNA.social + (Math.random() - 0.5) * 0.2)),
+                curiosity: Math.max(0, Math.min(1, baseDNA.curiosity + (Math.random() - 0.5) * 0.2))
+            };
+            
+            const microbe = new Microbe(point.x, point.y, dnaVariation);
+            this.microbes.push(microbe);
+            microbesCreated++;
+        }
+        
+        console.log(`🐠 创造了 ${microbesCreated} 个新生物`);
+    }
+    
+    // =============================================
+    // 测试功能
+    // =============================================
+    
     // 添加测试生物
     addTestMicrobes() {
         const count = 10;
