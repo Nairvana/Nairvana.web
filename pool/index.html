@@ -157,11 +157,36 @@
         .instructions p {
             margin: 5px 0;
         }
+
+        #mouseIndicator {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: rgba(79, 195, 247, 0.3);
+            border: 2px solid #4fc3f7;
+            pointer-events: none;
+            z-index: 50;
+            display: none;
+            transition: transform 0.1s ease;
+        }
+
+        #mouseIndicator.active {
+            display: block;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.2); opacity: 0.4; }
+            100% { transform: scale(1); opacity: 0.7; }
+        }
     </style>
 </head>
 <body>
     <div id="container">
         <canvas id="poolCanvas"></canvas>
+        <div id="mouseIndicator"></div>
         <div id="ui">
             <div class="panel">
                 <div class="panel-header">
@@ -192,6 +217,7 @@
                         <p>⚔️ 同样大小的鱼会争斗</p>
                         <p>🏃 鱼会逃离比自己大三倍的鱼</p>
                         <p>🚀 速度与大小成反比</p>
+                        <p>👆 按住鼠标并拖动可以吸引鱼群</p>
                     </div>
                 </div>
             </div>
@@ -328,6 +354,9 @@
                 this.huntTarget = null;
                 this.huntCooldown = 0;
 
+                // 鼠标牵引系统
+                this.mouseAttraction = 0;
+
                 // 唯一标识符
                 this.id = Math.random().toString(36).substr(2, 9);
             }
@@ -378,36 +407,43 @@
                 if (this.escapeTimer > 0) this.escapeTimer--;
                 if (this.huntCooldown > 0) this.huntCooldown--;
 
-                // 捕食者行为：主动寻找猎物
-                if (this.type === 'predator' && this.huntCooldown <= 0 && !this.escapeTarget) {
-                    this.huntTarget = this.findPrey();
+                // 处理鼠标牵引
+                if (window.lifePool.mouseAttraction.active && this.type !== 'predator') {
+                    this.respondToMouseAttraction();
                 }
+                // 如果没有鼠标牵引，继续正常行为
+                else {
+                    // 捕食者行为：主动寻找猎物
+                    if (this.type === 'predator' && this.huntCooldown <= 0 && !this.escapeTarget) {
+                        this.huntTarget = this.findPrey();
+                    }
 
-                if (this.huntTarget) {
-                    this.huntPrey();
-                }
-                // 逃避行为优先于其他行为
-                else if (!this.escapeTarget) {
-                    this.escapeTarget = this.findThreat();
-                }
+                    if (this.huntTarget) {
+                        this.huntPrey();
+                    }
+                    // 逃避行为优先于其他行为
+                    else if (!this.escapeTarget) {
+                        this.escapeTarget = this.findThreat();
+                    }
 
-                if (this.escapeTarget) {
-                    this.escapeFromThreat();
-                }
-                // 如果没有逃避行为，继续其他行为
-                else if (!this.combatTarget && !this.lord) {
-                    // 寻找领主（如果没有在争斗中）
-                    this.lord = this.findLord();
-                }
+                    if (this.escapeTarget) {
+                        this.escapeFromThreat();
+                    }
+                    // 如果没有逃避行为，继续其他行为
+                    else if (!this.combatTarget && !this.lord) {
+                        // 寻找领主（如果没有在争斗中）
+                        this.lord = this.findLord();
+                    }
 
-                // 跟随领主移动
-                if (this.lord && !this.combatTarget && !this.escapeTarget && !this.huntTarget) {
-                    this.followLord();
-                }
+                    // 跟随领主移动
+                    if (this.lord && !this.combatTarget && !this.escapeTarget && !this.huntTarget) {
+                        this.followLord();
+                    }
 
-                // 如果没有逃避、争斗、捕食或跟随，应用鱼群行为
-                if (!this.escapeTarget && !this.combatTarget && !this.lord && !this.huntTarget) {
-                    this.applyFlocking();
+                    // 如果没有逃避、争斗、捕食或跟随，应用鱼群行为
+                    if (!this.escapeTarget && !this.combatTarget && !this.lord && !this.huntTarget) {
+                        this.applyFlocking();
+                    }
                 }
 
                 // 更新位置 - 使用实际速度
@@ -451,6 +487,31 @@
                 return this.energy > 0 && this.dna.size > 0.5;
             }
 
+            // 响应鼠标牵引
+            respondToMouseAttraction() {
+                const mouse = window.lifePool.mouseAttraction;
+                const dx = mouse.x - this.position.x;
+                const dy = mouse.y - this.position.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                // 如果在牵引范围内
+                if (distance < mouse.radius) {
+                    // 计算牵引力（距离越近牵引力越大）
+                    const attraction = (1 - distance / mouse.radius) * 0.2;
+
+                    // 向鼠标位置移动
+                    if (distance > 0) {
+                        this.velocity.x += (dx / distance) * attraction;
+                        this.velocity.y += (dy / distance) * attraction;
+                    }
+
+                    // 增加社交性显示效果
+                    this.mouseAttraction = attraction;
+                } else {
+                    this.mouseAttraction = 0;
+                }
+            }
+
             // 绘制生物
             draw(ctx) {
                 // 根据状态决定颜色
@@ -464,6 +525,10 @@
                 } else if (this.huntTarget) {
                     // 捕食状态显示为深红色
                     color = `hsl(0, 90%, 50%)`;
+                } else if (this.mouseAttraction > 0) {
+                    // 被鼠标牵引时显示为亮蓝色
+                    const baseHue = parseInt(this.dna.color.match(/\d+/)[0]);
+                    color = `hsl(${baseHue}, 90%, ${60 + this.mouseAttraction * 20}%)`;
                 }
 
                 // 根据社交性决定透明度（社交性高的更不透明）
@@ -906,7 +971,7 @@
                 let checks = 0;
 
                 for (const other of this.allMicrobes) {
-                    if (other === this || other.dna.size < this.dna.size ) continue;
+                    if (other === this || other.dna.size < this.dna.size * 3) continue;
 
                     checks++;
                     if (checks > maxChecks) break;
@@ -1269,6 +1334,14 @@
                 this.maxMicrobes = 500; // 将最大生物数量提高到500
                 this.lastMicrobeCleanup = 0;
 
+                // 鼠标牵引系统
+                this.mouseAttraction = {
+                    active: false,
+                    x: 0,
+                    y: 0,
+                    radius: 150
+                };
+
                 // 初始化
                 this.resizeCanvas();
                 this.setupEventListeners();
@@ -1291,6 +1364,18 @@
 
                 // 点击事件 - 用于捕杀生物
                 this.canvas.addEventListener('click', (e) => this.handleClick(e));
+
+                // 鼠标按下事件 - 用于启动牵引
+                this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+
+                // 鼠标移动事件 - 用于更新牵引位置
+                this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+
+                // 鼠标抬起事件 - 用于停止牵引
+                this.canvas.addEventListener('mouseup', () => this.handleMouseUp());
+
+                // 鼠标离开画布事件 - 用于停止牵引
+                this.canvas.addEventListener('mouseleave', () => this.handleMouseUp());
             }
 
             // 设置UI交互
@@ -1328,6 +1413,66 @@
                         panel.classList.toggle('collapsed');
                     }
                 });
+            }
+
+            // 处理鼠标按下事件
+            handleMouseDown(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                // 检查是否点击了生物
+                let clickedMicrobe = false;
+                for (const microbe of this.microbes) {
+                    const dx = mouseX - microbe.position.x;
+                    const dy = mouseY - microbe.position.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < microbe.dna.size) {
+                        clickedMicrobe = true;
+                        break;
+                    }
+                }
+
+                // 如果没有点击生物，启动鼠标牵引
+                if (!clickedMicrobe) {
+                    this.mouseAttraction.active = true;
+                    this.mouseAttraction.x = mouseX;
+                    this.mouseAttraction.y = mouseY;
+
+                    // 显示鼠标指示器
+                    const indicator = document.getElementById('mouseIndicator');
+                    indicator.classList.add('active');
+                    indicator.style.left = (mouseX - 15) + 'px';
+                    indicator.style.top = (mouseY - 15) + 'px';
+                }
+            }
+
+            // 处理鼠标移动事件
+            handleMouseMove(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                // 更新鼠标位置
+                this.mouseAttraction.x = mouseX;
+                this.mouseAttraction.y = mouseY;
+
+                // 更新鼠标指示器位置
+                if (this.mouseAttraction.active) {
+                    const indicator = document.getElementById('mouseIndicator');
+                    indicator.style.left = (mouseX - 15) + 'px';
+                    indicator.style.top = (mouseY - 15) + 'px';
+                }
+            }
+
+            // 处理鼠标抬起事件
+            handleMouseUp() {
+                this.mouseAttraction.active = false;
+
+                // 隐藏鼠标指示器
+                const indicator = document.getElementById('mouseIndicator');
+                indicator.classList.remove('active');
             }
 
             // 处理点击事件 - 捕杀生物并生成能量点
@@ -1448,6 +1593,11 @@
                 // 更新和绘制所有生物
                 this.updateMicrobes();
 
+                // 绘制鼠标牵引区域（如果激活）
+                if (this.mouseAttraction.active) {
+                    this.drawMouseAttraction();
+                }
+
                 // 定期清理死亡生物引用
                 if (Date.now() - this.lastMicrobeCleanup > 1000) {
                     this.cleanupMicrobeReferences();
@@ -1459,6 +1609,31 @@
 
                 // 继续动画循环
                 requestAnimationFrame(() => this.animate());
+            }
+
+            // 绘制鼠标牵引区域
+            drawMouseAttraction() {
+                const mouse = this.mouseAttraction;
+
+                // 绘制牵引区域
+                const gradient = this.ctx.createRadialGradient(
+                    mouse.x, mouse.y, 0,
+                    mouse.x, mouse.y, mouse.radius
+                );
+                gradient.addColorStop(0, 'rgba(79, 195, 247, 0.2)');
+                gradient.addColorStop(0.7, 'rgba(79, 195, 247, 0.1)');
+                gradient.addColorStop(1, 'rgba(79, 195, 247, 0)');
+
+                this.ctx.fillStyle = gradient;
+                this.ctx.beginPath();
+                this.ctx.arc(mouse.x, mouse.y, mouse.radius, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // 绘制牵引中心
+                this.ctx.fillStyle = 'rgba(79, 195, 247, 0.5)';
+                this.ctx.beginPath();
+                this.ctx.arc(mouse.x, mouse.y, 10, 0, Math.PI * 2);
+                this.ctx.fill();
             }
 
             // 更新所有能量点
