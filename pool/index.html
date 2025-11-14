@@ -36,21 +36,71 @@
             top: 20px;
             left: 20px;
             z-index: 100;
+            transition: all 0.3s ease;
         }
 
         .panel {
             background: rgba(0, 20, 40, 0.8);
             border: 1px solid rgba(100, 150, 255, 0.3);
             border-radius: 10px;
-            padding: 15px;
             backdrop-filter: blur(10px);
             min-width: 200px;
+            overflow: hidden;
+            transition: all 0.3s ease;
         }
 
-        .panel h3 {
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            border-bottom: 1px solid rgba(100, 150, 255, 0.3);
+            cursor: pointer;
+            background: rgba(0, 30, 60, 0.9);
+        }
+
+        .panel-header h3 {
             color: #4fc3f7;
-            margin-bottom: 10px;
+            margin: 0;
             font-size: 16px;
+        }
+
+        #togglePanel {
+            background: rgba(79, 195, 247, 0.2);
+            border: 1px solid #4fc3f7;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        #togglePanel:hover {
+            background: rgba(79, 195, 247, 0.4);
+        }
+
+        .panel-content {
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+
+        /* 收起状态 */
+        .panel.collapsed {
+            min-width: auto;
+            width: 200px;
+        }
+
+        .panel.collapsed .panel-content {
+            display: none;
+        }
+
+        .panel.collapsed #togglePanel {
+            transform: rotate(180deg);
         }
 
         .stats {
@@ -110,40 +160,44 @@
     </style>
 </head>
 <body>
-    <div id="ui">
-    <div class="panel">
-        <div class="panel-header">
-            <h3>生命之池 - 鱼群模拟</h3>
-            <button id="togglePanel">◀</button>
-        </div>
-        <div class="panel-content">
-            <div class="stats">
-                <div>生物数量: <span id="microbeCount">0</span></div>
-                <div>能量点: <span id="energyCount">0</span></div>
-                <div>帧率: <span id="fps">0</span></div>
-                <div>吞噬事件: <span id="eatCount">0</span></div>
-                <div>争斗事件: <span id="combatCount">0</span></div>
-                <div>逃避事件: <span id="escapeCount">0</span></div>
-            </div>
-            <div class="controls">
-                <button id="clearBtn">清空池子</button>
-                <button id="addTestBtn">添加鱼群</button>
-                <div class="control-row">
-                    <button id="addPredatorBtn">添加鲨鱼</button>
+    <div id="container">
+        <canvas id="poolCanvas"></canvas>
+        <div id="ui">
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>生命之池 - 鱼群模拟</h3>
+                    <button id="togglePanel">◀</button>
                 </div>
-            </div>
-            <div class="instructions">
-                <p>🐟 点击生物将其转化为能量点</p>
-                <p>🌟 能量点会吸引附近的生物</p>
-                <p>🦈 鲨鱼会主动捕食其他鱼</p>
-                <p>🐠 小鱼会形成鱼群</p>
-                <p>⚔️ 同样大小的鱼会争斗</p>
-                <p>🏃 鱼会逃离比自己大三倍的鱼</p>
-                <p>🚀 速度与大小成反比</p>
+                <div class="panel-content">
+                    <div class="stats">
+                        <div>生物数量: <span id="microbeCount">0</span></div>
+                        <div>能量点: <span id="energyCount">0</span></div>
+                        <div>帧率: <span id="fps">0</span></div>
+                        <div>吞噬事件: <span id="eatCount">0</span></div>
+                        <div>争斗事件: <span id="combatCount">0</span></div>
+                        <div>逃避事件: <span id="escapeCount">0</span></div>
+                    </div>
+                    <div class="controls">
+                        <button id="clearBtn">清空池子</button>
+                        <button id="addTestBtn">添加鱼群</button>
+                        <div class="control-row">
+                            <button id="addPredatorBtn">添加鲨鱼</button>
+                        </div>
+                    </div>
+                    <div class="instructions">
+                        <p>🐟 点击生物将其转化为能量点</p>
+                        <p>🌟 能量点会吸引附近的生物</p>
+                        <p>🦈 鲨鱼会主动捕食其他鱼</p>
+                        <p>🐠 小鱼会形成鱼群</p>
+                        <p>⚔️ 同样大小的鱼会争斗</p>
+                        <p>🏃 鱼会逃离比自己大三倍的鱼</p>
+                        <p>🚀 速度与大小成反比</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-</div>
+
     <script>
         // =============================================
         // 能量点类 - 定义能量点的行为和外观
@@ -279,7 +333,7 @@
             }
 
             // 根据类型调整属性
-            applyTypeModifiers() {3
+            applyTypeModifiers() {
                 if (this.type === 'predator') {
                     // 鲨鱼：更大、更具攻击性（速度现在统一在get speed中处理）
                     this.dna.size *= 2.5;
@@ -293,14 +347,14 @@
                 this.dna.size = Math.max(1, Math.min(15, this.dna.size));
             }
 
-            // 速度计算方法
+            // 计算实际速度 - 所有生物统一速度，鲨鱼为3倍速
             get speed() {
                 // 基础速度（所有生物统一）
                 const baseSpeed = 2.0;
 
                 // 鲨鱼速度为3倍
                 if (this.type === 'predator') {
-                    return baseSpeed * 1.5;
+                    return baseSpeed * 3.0;
                 }
 
                 // 其他生物正常速度
@@ -472,8 +526,9 @@
 
             // 绘制鲨鱼 - 基于三角形的设计
             drawShark(ctx, x, y, size) {
-            // 确保鲨鱼不会倒着游
+                // 确保鲨鱼不会倒着游
                 let angle = Math.atan2(this.velocity.y, this.velocity.x);
+
                 // 如果速度几乎为零，使用随机角度
                 if (Math.abs(this.velocity.x) < 0.01 && Math.abs(this.velocity.y) < 0.01) {
                     angle = Math.random() * Math.PI * 2;
@@ -619,7 +674,7 @@
             // 捕食系统
             // =============================================
 
-            // 寻找猎物（捕食者特有）
+            // 寻找猎物（捕食者特有）- 优先捕食最大的鱼
             findPrey() {
                 if (this.type !== 'predator') return null;
 
@@ -664,7 +719,7 @@
                 return bestPrey;
             }
 
-            // 追捕猎物
+            // 优化鲨鱼追逐逻辑
             huntPrey() {
                 if (!this.huntTarget) return;
 
@@ -844,7 +899,7 @@
             findThreat() {
                 let closestThreat = null;
                 let closestDistance = Infinity;
-                const threatRadius = 200; // 威胁检测半径
+                const threatRadius = 120; // 威胁检测半径
 
                 // 限制每帧检查的威胁数量，提高性能
                 const maxChecks = Math.min(10, this.allMicrobes.length);
@@ -917,36 +972,35 @@
             }
 
             // 吞噬其他生物
-           // 在 eat 方法中找到这部分代码，并进行修改
-        eat(other) {
-            // 捕食者可以吞噬比自己稍大的生物
-            const sizeThreshold = this.type === 'predator' ? 1.1 : 1.2;
+            eat(other) {
+                // 捕食者可以吞噬比自己稍大的生物
+                const sizeThreshold = this.type === 'predator' ? 1.1 : 1.2;
 
-            if (this.dna.size > other.dna.size * sizeThreshold) { // 大小差异足够大才能吞噬
-                // 计算大小增益
-                let sizeGain = other.dna.size * 0.3;
+                if (this.dna.size > other.dna.size * sizeThreshold) { // 大小差异足够大才能吞噬
+                    // 计算大小增益
+                    let sizeGain = other.dna.size * 0.3;
 
-                // 如果是鲨鱼，增长速度减半
-                if (this.type === 'predator') {
-                    sizeGain *= 0.5; // 鲨鱼的大小增长减半
+                    // 如果是鲨鱼，增长速度减半
+                    if (this.type === 'predator') {
+                        sizeGain *= 0.5; // 鲨鱼的大小增长减半
+                    }
+
+                    // 增加自身大小和能量
+                    this.dna.size += sizeGain;
+                    this.energy += other.energy * 0.8;
+
+                    // 捕食者获得更多能量
+                    if (this.type === 'predator') {
+                        this.energy += 20;
+                    }
+
+                    // 更新统计数据
+                    window.lifePool.eatEvents++;
+
+                    return true; // 吞噬成功
                 }
-
-                // 增加自身大小和能量
-                this.dna.size += sizeGain;
-                this.energy += other.energy * 0.8;
-
-                // 捕食者获得更多能量
-                if (this.type === 'predator') {
-                    this.energy += 20;
-                }
-
-                // 更新统计数据
-                window.lifePool.eatEvents++;
-
-                return true; // 吞噬成功
+                return false; // 无法吞噬
             }
-            return false; // 无法吞噬
-        }
 
             // 检测与所有其他生物的碰撞
             checkAllCollisions() {
@@ -1212,7 +1266,7 @@
                 this.lastFpsUpdate = 0;
 
                 // 性能优化
-                this.maxMicrobes = 600; // 提高最大生物数量限制
+                this.maxMicrobes = 500; // 将最大生物数量提高到500
                 this.lastMicrobeCleanup = 0;
 
                 // 初始化
@@ -1258,6 +1312,21 @@
                 // 添加捕食者按钮
                 document.getElementById('addPredatorBtn').addEventListener('click', () => {
                     this.addPredators();
+                });
+
+                // 侧边栏收起/展开功能
+                document.getElementById('togglePanel').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const panel = document.querySelector('.panel');
+                    panel.classList.toggle('collapsed');
+                });
+
+                // 点击标题也可以收起/展开
+                document.querySelector('.panel-header').addEventListener('click', (e) => {
+                    if (e.target.id !== 'togglePanel') {
+                        const panel = document.querySelector('.panel');
+                        panel.classList.toggle('collapsed');
+                    }
                 });
             }
 
@@ -1320,7 +1389,6 @@
                     const x = centerX + Math.cos(angle) * radius;
                     const y = centerY + Math.sin(angle) * radius;
 
-                    // fishDNA 的定义
                     const fishDNA = {
                         type: 'normal',
                         baseSpeed: 2.0, // 统一基础速度
@@ -1337,7 +1405,7 @@
                 }
             }
 
-            // 添加鲨鱼
+            // 添加鲨鱼 - 一次只添加一条
             addPredators() {
                 // 每次只添加一条鲨鱼
                 if (this.microbes.length < this.maxMicrobes) {
