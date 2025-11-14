@@ -210,13 +210,12 @@
                         </div>
                     </div>
                     <div class="instructions">
-                        <p>🐟 点击生物将其转化为能量点</p>
+                        <p>🐟 点击生物将其捕杀转化为能量点</p>
                         <p>🌟 能量点会吸引附近的生物</p>
                         <p>🦈 鲨鱼会主动捕食其他鱼</p>
                         <p>🐠 小鱼会形成鱼群</p>
                         <p>⚔️ 同样大小的鱼会争斗</p>
-                        <p>🏃 鱼会逃离比自己大三倍的鱼</p>
-                        <p>🚀 速度与大小成反比</p>
+                        <p>🏃 鱼会逃离比自己大的鱼</p>
                         <p>👆 按住鼠标并拖动可以吸引鱼群</p>
                     </div>
                 </div>
@@ -238,22 +237,22 @@
                 this.pulse = 0;
                 this.attractionRadius = 150; // 吸引范围
             }
-            
+
             // 更新能量点状态
             update() {
                 this.age++;
                 this.pulse = Math.sin(this.age * 0.1) * 0.5 + 0.5; // 脉动效果
-                
+
                 // 能量随时间减少
                 this.energy = this.maxEnergy * (1 - this.age / this.lifespan);
-                
+
                 return this.age < this.lifespan && this.energy > 0;
             }
-            
+
             // 绘制能量点
             draw(ctx) {
                 const size = 5 + this.pulse * 3;
-                
+
                 // 发光效果
                 const gradient = ctx.createRadialGradient(
                     this.position.x, this.position.y, 0,
@@ -262,33 +261,33 @@
                 gradient.addColorStop(0, `rgba(255, 255, 100, ${0.8 * this.energy/this.maxEnergy})`);
                 gradient.addColorStop(0.5, `rgba(255, 200, 50, ${0.4 * this.energy/this.maxEnergy})`);
                 gradient.addColorStop(1, 'rgba(255, 150, 0, 0)');
-                
+
                 ctx.fillStyle = gradient;
                 ctx.beginPath();
                 ctx.arc(this.position.x, this.position.y, size * 2, 0, Math.PI * 2);
                 ctx.fill();
-                
+
                 // 能量点核心
                 ctx.fillStyle = `rgba(255, 255, 100, ${this.energy/this.maxEnergy})`;
                 ctx.beginPath();
                 ctx.arc(this.position.x, this.position.y, size, 0, Math.PI * 2);
                 ctx.fill();
             }
-            
+
             // 吸引附近的生物
             attractMicrobes(microbes) {
                 for (const microbe of microbes) {
                     // 如果生物已经在逃避或争斗，不会被能量点吸引
                     if (microbe.escapeTarget || microbe.combatTarget) continue;
-                    
+
                     const dx = this.position.x - microbe.position.x;
                     const dy = this.position.y - microbe.position.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
-                    
+
                     if (distance < this.attractionRadius) {
                         // 增加吸引力（从0.1增加到0.15）
                         const attraction = (1 - distance / this.attractionRadius) * 0.15;
-                        
+
                         // 向能量点移动
                         if (distance > 0) {
                             microbe.velocity.x += (dx / distance) * attraction;
@@ -306,14 +305,14 @@
             constructor(x, y, dna = {}) {
                 // 位置和运动
                 this.position = { x, y };
-                this.velocity = { 
-                    x: (Math.random() - 0.5) * 2, 
-                    y: (Math.random() - 0.5) * 2 
+                this.velocity = {
+                    x: (Math.random() - 0.5) * 2,
+                    y: (Math.random() - 0.5) * 2
                 };
-                
+
                 // 生物类型
                 this.type = dna.type || 'normal'; // normal, predator
-                
+
                 // DNA属性（生物特征）
                 this.dna = {
                     // 基础速度 - 现在与大小成反比，整体提高了速度
@@ -328,45 +327,45 @@
                     aggression: dna.aggression || Math.random(), // 攻击性
                     ...dna
                 };
-                
+
                 // 根据类型调整属性
                 this.applyTypeModifiers();
-                
+
                 // 状态属性 - 移除了自然死亡机制
                 this.energy = 100;
                 this.age = 0;
-                
+
                 // 伴随系统
                 this.lord = null;
                 this.followOffset = { x: 0, y: 0 };
                 this.isFollowing = false;
-                
+
                 // 争斗系统
                 this.combatTarget = null;
                 this.combatCooldown = 0;
                 this.exclamationTimer = 0;
-                
+
                 // 逃避系统
                 this.escapeTarget = null;
                 this.escapeTimer = 0;
-                
+
                 // 鱼群系统
                 this.flockMates = [];
-                
+
                 // 捕食系统（捕食者特有）
                 this.huntTarget = null;
                 this.huntCooldown = 0;
-                
+
                 // 鼠标牵引系统
                 this.mouseAttraction = 0;
-                
+
                 // 能量增长效果计时器
                 this.energyBoostTimer = 0;
-                
+
                 // 唯一标识符
                 this.id = Math.random().toString(36).substr(2, 9);
             }
-            
+
             // 根据类型调整属性
             applyTypeModifiers() {
                 if (this.type === 'predator') {
@@ -376,43 +375,43 @@
                     this.dna.social = Math.min(0.2, this.dna.social);
                     this.dna.color = `hsl(200, 80%, 40%)`; // 深蓝色
                 }
-                
+
                 // 限制在合理范围内
                 this.dna.baseSpeed = Math.max(0.5, Math.min(8, this.dna.baseSpeed));
                 this.dna.size = Math.max(1, Math.min(15, this.dna.size));
             }
-            
-            // 计算实际速度 - 所有生物统一速度，鲨鱼为1.5倍速
+
+            // 计算实际速度 - 所有生物统一速度，鲨鱼为3倍速
             get speed() {
                 // 基础速度（所有生物统一）
                 const baseSpeed = 2.0;
-                
-                // 鲨鱼速度为3倍
+
+                // 鲨鱼速度为1.5倍
                 if (this.type === 'predator') {
                     return baseSpeed * 1.5;
                 }
-                
+
                 // 其他生物正常速度
                 return baseSpeed;
             }
-            
+
             // 生成随机颜色
             generateColor() {
                 const hue = Math.random() * 60 + 180; // 蓝色到青色范围
                 return `hsl(${hue}, 70%, 60%)`;
             }
-            
+
             // 更新生物状态
             update(canvas) {
                 this.allMicrobes = window.lifePool.microbes;
                 this.energyPoints = window.lifePool.energyPoints;
-                
+
                 // 更新计时器
                 if (this.exclamationTimer > 0) this.exclamationTimer--;
                 if (this.combatCooldown > 0) this.combatCooldown--;
                 if (this.escapeTimer > 0) this.escapeTimer--;
                 if (this.huntCooldown > 0) this.huntCooldown--;
-                
+
                 // 处理鼠标牵引
                 if (window.lifePool.mouseAttraction.active && this.type !== 'predator') {
                     this.respondToMouseAttraction();
@@ -423,7 +422,7 @@
                     if (this.type === 'predator' && this.huntCooldown <= 0 && !this.escapeTarget) {
                         this.huntTarget = this.findPrey();
                     }
-                    
+
                     if (this.huntTarget) {
                         this.huntPrey();
                     }
@@ -431,7 +430,7 @@
                     else if (!this.escapeTarget) {
                         this.escapeTarget = this.findThreat();
                     }
-                    
+
                     if (this.escapeTarget) {
                         this.escapeFromThreat();
                     }
@@ -440,28 +439,28 @@
                         // 寻找领主（如果没有在争斗中）
                         this.lord = this.findLord();
                     }
-                    
+
                     // 跟随领主移动
                     if (this.lord && !this.combatTarget && !this.escapeTarget && !this.huntTarget) {
                         this.followLord();
                     }
-                    
+
                     // 如果没有逃避、争斗、捕食或跟随，应用鱼群行为
                     if (!this.escapeTarget && !this.combatTarget && !this.lord && !this.huntTarget) {
                         this.applyFlocking();
                     }
                 }
-                
+
                 // 检测并消耗能量点
                 this.checkEnergyPointsConsumption();
-                
+
                 // 更新位置 - 使用实际速度
                 this.position.x += this.velocity.x * this.speed;
                 this.position.y += this.velocity.y * this.speed;
-                
+
                 // 检测碰撞（包括争斗和捕食）
                 this.checkAllCollisions();
-                
+
                 // 边界检测和环绕（而不是反弹）
                 if (this.position.x < -this.dna.size) {
                     this.position.x = canvas.width + this.dna.size;
@@ -475,67 +474,67 @@
                 if (this.position.y > canvas.height + this.dna.size) {
                     this.position.y = -this.dna.size;
                 }
-                
+
                 // 随机方向变化（受好奇心影响）
                 if (Math.random() < 0.01 * this.dna.curiosity && !this.escapeTarget && !this.huntTarget) {
                     this.velocity.x += (Math.random() - 0.5) * 0.5;
                     this.velocity.y += (Math.random() - 0.5) * 0.5;
                 }
-                
+
                 // 归一化速度（保持恒定速度）
                 const speed = Math.sqrt(this.velocity.x ** 2 + this.velocity.y ** 2);
                 if (speed > 0) {
                     this.velocity.x = (this.velocity.x / speed);
                     this.velocity.y = (this.velocity.y / speed);
                 }
-                
+
                 // 年龄增长（不再导致死亡）
                 this.age++;
-                
+
                 // 检查是否死亡（只通过争斗或吞噬）
                 return this.energy > 0 && this.dna.size > 0.5;
             }
-            
+
             // 响应鼠标牵引
             respondToMouseAttraction() {
                 const mouse = window.lifePool.mouseAttraction;
                 const dx = mouse.x - this.position.x;
                 const dy = mouse.y - this.position.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
-                
+
                 // 如果在牵引范围内
                 if (distance < mouse.radius) {
                     // 计算牵引力（距离越近牵引力越大）
                     const attraction = (1 - distance / mouse.radius) * 0.2;
-                    
+
                     // 向鼠标位置移动
                     if (distance > 0) {
                         this.velocity.x += (dx / distance) * attraction;
                         this.velocity.y += (dy / distance) * attraction;
                     }
-                    
+
                     // 增加社交性显示效果
                     this.mouseAttraction = attraction;
                 } else {
                     this.mouseAttraction = 0;
                 }
             }
-            
+
             // 检测并消耗能量点
             checkEnergyPointsConsumption() {
                 // 限制每帧检查的能量点数量，提高性能
                 const maxChecks = Math.min(10, this.energyPoints.length);
                 let checks = 0;
-                
+
                 for (let i = this.energyPoints.length - 1; i >= 0 && checks < maxChecks; i--) {
                     const energyPoint = this.energyPoints[i];
                     const dx = this.position.x - energyPoint.position.x;
                     const dy = this.position.y - energyPoint.position.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
-                    
+
                     // 如果生物与能量点足够近，可以吃掉能量点
                     const consumptionDistance = this.dna.size + 8; // 比能量点稍大的范围
-                    
+
                     if (distance < consumptionDistance) {
                         // 一口吃掉能量点
                         this.consumeEnergyPoint(energyPoint, i);
@@ -544,29 +543,29 @@
                     checks++;
                 }
             }
-            
+
             // 消耗能量点
             consumeEnergyPoint(energyPoint, index) {
                 // 增加生物能量
                 this.energy += energyPoint.energy * 0.8; // 获得能量点80%的能量
-                
+
                 // 如果是鲨鱼，获得额外能量奖励
                 if (this.type === 'predator') {
                     this.energy += 10;
                 }
-                
+
                 // 从能量点数组中移除
                 this.energyPoints.splice(index, 1);
-                
+
                 // 显示吞噬效果
                 this.showConsumptionEffect(energyPoint.position.x, energyPoint.position.y);
             }
-            
+
             // 显示吞噬效果
             showConsumptionEffect(x, y) {
                 this.energyBoostTimer = 20; // 显示20帧
             }
-            
+
             // 绘制生物
             draw(ctx) {
                 // 根据状态决定颜色
@@ -585,61 +584,61 @@
                     const baseHue = parseInt(this.dna.color.match(/\d+/)[0]);
                     color = `hsl(${baseHue}, 90%, ${60 + this.mouseAttraction * 20}%)`;
                 }
-                
+
                 // 根据社交性决定透明度（社交性高的更不透明）
                 const alpha = 0.3 + this.dna.social * 0.7;
                 ctx.fillStyle = color.replace(')', `, ${alpha})`).replace('hsl', 'hsla');
-                
+
                 // 绘制鱼形
                 if (this.type === 'predator') {
                     this.drawShark(ctx, this.position.x, this.position.y, this.dna.size);
                 } else {
                     this.drawFish(ctx, this.position.x, this.position.y, this.dna.size);
                 }
-                
+
                 // 绘制感叹号（如果正在显示）
                 if (this.exclamationTimer > 0) {
                     this.drawExclamation(ctx);
                 }
-                
+
                 // 绘制能量增长效果
                 if (this.energyBoostTimer > 0) {
                     this.drawEnergyBoost(ctx);
                     this.energyBoostTimer--;
                 }
             }
-            
+
             // 绘制能量增长效果
             drawEnergyBoost(ctx) {
                 const boostSize = this.dna.size * (1 + this.energyBoostTimer / 20);
                 const alpha = this.energyBoostTimer / 20;
-                
+
                 ctx.strokeStyle = `rgba(255, 255, 100, ${alpha})`;
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.arc(this.position.x, this.position.y, boostSize, 0, Math.PI * 2);
                 ctx.stroke();
             }
-            
+
             // 绘制普通鱼形
             drawFish(ctx, x, y, size) {
                 // 确保鱼不会倒着游
                 let angle = Math.atan2(this.velocity.y, this.velocity.x);
-                
+
                 // 如果速度几乎为零，使用随机角度
                 if (Math.abs(this.velocity.x) < 0.01 && Math.abs(this.velocity.y) < 0.01) {
                     angle = Math.random() * Math.PI * 2;
                 }
-                
+
                 ctx.save();
                 ctx.translate(x, y);
                 ctx.rotate(angle);
-                
+
                 // 鱼身
                 ctx.beginPath();
                 ctx.ellipse(0, 0, size, size * 0.6, 0, 0, Math.PI * 2);
                 ctx.fill();
-                
+
                 // 鱼尾
                 ctx.beginPath();
                 ctx.moveTo(-size * 0.8, 0);
@@ -647,35 +646,35 @@
                 ctx.lineTo(-size * 1.5, size * 0.5);
                 ctx.closePath();
                 ctx.fill();
-                
+
                 // 鱼眼 - 确保在正确的一侧
                 ctx.fillStyle = 'white';
                 ctx.beginPath();
                 ctx.arc(size * 0.5, -size * 0.2, size * 0.2, 0, Math.PI * 2);
                 ctx.fill();
-                
+
                 ctx.fillStyle = 'black';
                 ctx.beginPath();
                 ctx.arc(size * 0.6, -size * 0.2, size * 0.1, 0, Math.PI * 2);
                 ctx.fill();
-                
+
                 ctx.restore();
             }
-            
+
             // 绘制鲨鱼 - 基于三角形的设计
             drawShark(ctx, x, y, size) {
                 // 确保鲨鱼不会倒着游
                 let angle = Math.atan2(this.velocity.y, this.velocity.x);
-                
+
                 // 如果速度几乎为零，使用随机角度
                 if (Math.abs(this.velocity.x) < 0.01 && Math.abs(this.velocity.y) < 0.01) {
                     angle = Math.random() * Math.PI * 2;
                 }
-                
+
                 ctx.save();
                 ctx.translate(x, y);
                 ctx.rotate(angle);
-                
+
                 // 鲨鱼身体 - 使用菱形/钻石形状
                 ctx.beginPath();
                 ctx.moveTo(size * 1.2, 0); // 前端
@@ -684,7 +683,7 @@
                 ctx.lineTo(0, size * 0.6); // 下侧
                 ctx.closePath();
                 ctx.fill();
-                
+
                 // 鲨鱼尾巴 - 三角形
                 ctx.beginPath();
                 ctx.moveTo(-size * 1.0, 0);
@@ -692,7 +691,7 @@
                 ctx.lineTo(-size * 1.8, size * 0.5);
                 ctx.closePath();
                 ctx.fill();
-                
+
                 // 鲨鱼背鳍 - 三角形
                 ctx.beginPath();
                 ctx.moveTo(size * 0.3, -size * 0.6);
@@ -700,7 +699,7 @@
                 ctx.lineTo(-size * 0.1, -size * 0.6);
                 ctx.closePath();
                 ctx.fill();
-                
+
                 // 鲨鱼胸鳍 - 两个小三角形
                 ctx.beginPath();
                 ctx.moveTo(size * 0.2, size * 0.2);
@@ -708,25 +707,25 @@
                 ctx.lineTo(-size * 0.1, size * 0.2);
                 ctx.closePath();
                 ctx.fill();
-                
+
                 ctx.beginPath();
                 ctx.moveTo(size * 0.2, -size * 0.2);
                 ctx.lineTo(-size * 0.2, -size * 0.5);
                 ctx.lineTo(-size * 0.1, -size * 0.2);
                 ctx.closePath();
                 ctx.fill();
-                
+
                 // 鲨鱼眼睛 - 圆形
                 ctx.fillStyle = 'white';
                 ctx.beginPath();
                 ctx.arc(size * 0.8, -size * 0.2, size * 0.15, 0, Math.PI * 2);
                 ctx.fill();
-                
+
                 ctx.fillStyle = 'black';
                 ctx.beginPath();
                 ctx.arc(size * 0.85, -size * 0.2, size * 0.08, 0, Math.PI * 2);
                 ctx.fill();
-                
+
                 // 鲨鱼嘴巴 - 三角形开口
                 ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
                 ctx.lineWidth = 1.5;
@@ -735,7 +734,7 @@
                 ctx.lineTo(size * 1.3, 0);
                 ctx.lineTo(size * 1.0, -size * 0.1);
                 ctx.stroke();
-                
+
                 // 简化的牙齿 - 只画几颗
                 ctx.fillStyle = 'white';
                 for (let i = 0; i < 3; i++) {
@@ -747,10 +746,10 @@
                     ctx.closePath();
                     ctx.fill();
                 }
-                
+
                 ctx.restore();
             }
-            
+
             // 绘制感叹号
             drawExclamation(ctx) {
                 ctx.fillStyle = '#ffff00';
@@ -759,16 +758,16 @@
                 ctx.textBaseline = 'middle';
                 ctx.fillText('!', this.position.x, this.position.y - this.dna.size - 10);
             }
-            
+
             // 繁殖后代
             reproduce() {
                 // 只有能量充足且随机概率时繁殖
                 if (this.energy > 120 && Math.random() < 0.003 && !this.combatTarget && !this.escapeTarget && !this.huntTarget) {
                     this.energy -= 60; // 繁殖消耗能量
-                    
+
                     const childDNA = { ...this.dna };
                     childDNA.type = this.type; // 继承类型
-                    
+
                     // 引入随机变异
                     childDNA.baseSpeed *= (0.8 + Math.random() * 0.4);
                     childDNA.size *= (0.8 + Math.random() * 0.4);
@@ -778,7 +777,7 @@
                     childDNA.cohesion += (Math.random() - 0.5) * 0.2;
                     childDNA.separation += (Math.random() - 0.5) * 0.2;
                     childDNA.aggression += (Math.random() - 0.5) * 0.2;
-                    
+
                     // 限制在合理范围内
                     childDNA.baseSpeed = Math.max(0.5, Math.min(8, childDNA.baseSpeed));
                     childDNA.size = Math.max(1, Math.min(15, childDNA.size));
@@ -788,52 +787,52 @@
                     childDNA.cohesion = Math.max(0, Math.min(1, childDNA.cohesion));
                     childDNA.separation = Math.max(0, Math.min(1, childDNA.separation));
                     childDNA.aggression = Math.max(0, Math.min(1, childDNA.aggression));
-                    
+
                     // 颜色变异（20%概率）
                     if (Math.random() < 0.2) {
                         const currentHue = parseInt(childDNA.color.match(/\d+/)[0]);
                         const newHue = (currentHue + (Math.random() - 0.5) * 30 + 360) % 360;
                         childDNA.color = `hsl(${newHue}, 70%, 60%)`;
                     }
-                    
+
                     // 在父母附近创建后代
                     const child = new Microbe(
                         this.position.x + (Math.random() - 0.5) * 20,
                         this.position.y + (Math.random() - 0.5) * 20,
                         childDNA
                     );
-                    
+
                     return child;
                 }
                 return null;
             }
-            
+
             // =============================================
             // 捕食系统
             // =============================================
-            
+
             // 寻找猎物（捕食者特有）- 优先捕食最大的鱼
             findPrey() {
                 if (this.type !== 'predator') return null;
-                
+
                 let bestPrey = null;
                 let largestSize = 0;
-                const huntRadius = 300; // 捕食检测半径
-                
+                const huntRadius = 250; // 捕食检测半径
+
                 // 限制每帧检查的猎物数量，提高性能
                 const maxChecks = Math.min(20, this.allMicrobes.length);
                 let checks = 0;
-                
+
                 for (const other of this.allMicrobes) {
                     if (other === this || other.type === 'predator' || other.dna.size >= this.dna.size) continue;
-                    
+
                     checks++;
                     if (checks > maxChecks) break;
-                    
+
                     const dx = other.position.x - this.position.x;
                     const dy = other.position.y - this.position.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
-                    
+
                     // 只考虑在捕食半径内的鱼
                     if (distance < huntRadius) {
                         // 优先选择最大的鱼
@@ -844,7 +843,7 @@
                         // 如果大小相同，选择更近的
                         else if (other.dna.size === largestSize && bestPrey) {
                             const currentDistance = Math.sqrt(
-                                Math.pow(bestPrey.position.x - this.position.x, 2) + 
+                                Math.pow(bestPrey.position.x - this.position.x, 2) +
                                 Math.pow(bestPrey.position.y - this.position.y, 2)
                             );
                             if (distance < currentDistance) {
@@ -853,141 +852,141 @@
                         }
                     }
                 }
-                
+
                 return bestPrey;
             }
-            
+
             // 优化鲨鱼追逐逻辑
             huntPrey() {
                 if (!this.huntTarget) return;
-                
+
                 const dx = this.huntTarget.position.x - this.position.x;
                 const dy = this.huntTarget.position.y - this.position.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
-                
+
                 // 如果猎物太远或死亡，停止追捕
                 if (distance > 300 || this.huntTarget.energy <= 0) {
                     this.huntTarget = null;
                     this.huntCooldown = 30;
                     return;
                 }
-                
+
                 // 计算追捕方向
                 const huntAngle = Math.atan2(dy, dx);
-                
+
                 // 平滑转向 - 使用转向速率而不是直接设置方向
                 const turnRate = 0.1; // 转向速率
                 const currentAngle = Math.atan2(this.velocity.y, this.velocity.x);
-                
+
                 // 计算角度差（考虑圆周）
                 let angleDiff = huntAngle - currentAngle;
                 if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
                 if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-                
+
                 // 应用转向
                 const newAngle = currentAngle + angleDiff * turnRate;
                 this.velocity.x = Math.cos(newAngle);
                 this.velocity.y = Math.sin(newAngle);
-                
+
                 // 如果距离很近，稍微减速以避免过度振荡
                 if (distance < 50) {
                     this.velocity.x *= 0.95;
                     this.velocity.y *= 0.95;
                 }
             }
-            
+
             // =============================================
             // 鱼群系统
             // =============================================
-            
+
             // 应用鱼群行为
             applyFlocking() {
                 // 捕食者不参与鱼群
                 if (this.type === 'predator') return;
-                
+
                 const neighbors = this.findNeighbors(80); // 寻找邻居
                 if (neighbors.length === 0) return;
-                
+
                 // 计算分离、对齐和凝聚的力
                 const separation = this.calculateSeparation(neighbors);
                 const alignment = this.calculateAlignment(neighbors);
                 const cohesion = this.calculateCohesion(neighbors);
-                
+
                 // 应用这些力（根据DNA权重）
                 this.velocity.x += separation.x * this.dna.separation * 0.1;
                 this.velocity.y += separation.y * this.dna.separation * 0.1;
-                
+
                 this.velocity.x += alignment.x * this.dna.alignment * 0.1;
                 this.velocity.y += alignment.y * this.dna.alignment * 0.1;
-                
+
                 this.velocity.x += cohesion.x * this.dna.cohesion * 0.05;
                 this.velocity.y += cohesion.y * this.dna.cohesion * 0.05;
             }
-            
+
             // 寻找邻居
             findNeighbors(radius) {
                 const neighbors = [];
                 const maxChecks = Math.min(15, this.allMicrobes.length);
                 let checks = 0;
-                
+
                 for (const other of this.allMicrobes) {
                     if (other === this) continue;
-                    
+
                     checks++;
                     if (checks > maxChecks) break;
-                    
+
                     const dx = other.position.x - this.position.x;
                     const dy = other.position.y - this.position.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
-                    
+
                     if (distance < radius) {
                         neighbors.push(other);
                     }
                 }
-                
+
                 return neighbors;
             }
-            
+
             // 计算分离力（避免与邻居太近）
             calculateSeparation(neighbors) {
                 const force = { x: 0, y: 0 };
                 let count = 0;
-                
+
                 for (const other of neighbors) {
                     const dx = this.position.x - other.position.x;
                     const dy = this.position.y - other.position.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
-                    
+
                     if (distance > 0 && distance < 30) {
                         force.x += dx / distance;
                         force.y += dy / distance;
                         count++;
                     }
                 }
-                
+
                 if (count > 0) {
                     force.x /= count;
                     force.y /= count;
                 }
-                
+
                 return force;
             }
-            
+
             // 计算对齐力（与邻居平均方向对齐）
             calculateAlignment(neighbors) {
                 const force = { x: 0, y: 0 };
                 let count = 0;
-                
+
                 for (const other of neighbors) {
                     force.x += other.velocity.x;
                     force.y += other.velocity.y;
                     count++;
                 }
-                
+
                 if (count > 0) {
                     force.x /= count;
                     force.y /= count;
-                    
+
                     // 归一化
                     const magnitude = Math.sqrt(force.x * force.x + force.y * force.y);
                     if (magnitude > 0) {
@@ -995,29 +994,29 @@
                         force.y /= magnitude;
                     }
                 }
-                
+
                 return force;
             }
-            
+
             // 计算凝聚力（向邻居平均位置移动）
             calculateCohesion(neighbors) {
                 const force = { x: 0, y: 0 };
                 let count = 0;
-                
+
                 for (const other of neighbors) {
                     force.x += other.position.x;
                     force.y += other.position.y;
                     count++;
                 }
-                
+
                 if (count > 0) {
                     force.x /= count;
                     force.y /= count;
-                    
+
                     // 指向平均位置
                     force.x -= this.position.x;
                     force.y -= this.position.y;
-                    
+
                     // 归一化
                     const magnitude = Math.sqrt(force.x * force.x + force.y * force.y);
                     if (magnitude > 0) {
@@ -1025,24 +1024,24 @@
                         force.y /= magnitude;
                     }
                 }
-                
+
                 return force;
             }
-            
+
             // =============================================
             // 逃避系统
             // =============================================
-            
-            // 寻找威胁
+
+            // 寻找威胁（比自己大的生物）
             findThreat() {
                 let closestThreat = null;
                 let closestDistance = Infinity;
                 const threatRadius = 120; // 威胁检测半径
-                
+
                 // 限制每帧检查的威胁数量，提高性能
                 const maxChecks = Math.min(10, this.allMicrobes.length);
                 let checks = 0;
-                
+
                 for (const other of this.allMicrobes) {
                     if (other === this || other.dna.size < this.dna.size ) continue;
                     
