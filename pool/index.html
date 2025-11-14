@@ -110,38 +110,40 @@
     </style>
 </head>
 <body>
-    <div id="container">
-        <canvas id="poolCanvas"></canvas>
-        <div id="ui">
-            <div class="panel">
-                <h3>生命之池 - 鱼群模拟</h3>
-                <div class="stats">
-                    <div>生物数量: <span id="microbeCount">0</span></div>
-                    <div>能量点: <span id="energyCount">0</span></div>
-                    <div>帧率: <span id="fps">0</span></div>
-                    <div>吞噬事件: <span id="eatCount">0</span></div>
-                    <div>争斗事件: <span id="combatCount">0</span></div>
-                    <div>逃避事件: <span id="escapeCount">0</span></div>
+    <div id="ui">
+    <div class="panel">
+        <div class="panel-header">
+            <h3>生命之池 - 鱼群模拟</h3>
+            <button id="togglePanel">◀</button>
+        </div>
+        <div class="panel-content">
+            <div class="stats">
+                <div>生物数量: <span id="microbeCount">0</span></div>
+                <div>能量点: <span id="energyCount">0</span></div>
+                <div>帧率: <span id="fps">0</span></div>
+                <div>吞噬事件: <span id="eatCount">0</span></div>
+                <div>争斗事件: <span id="combatCount">0</span></div>
+                <div>逃避事件: <span id="escapeCount">0</span></div>
+            </div>
+            <div class="controls">
+                <button id="clearBtn">清空池子</button>
+                <button id="addTestBtn">添加鱼群</button>
+                <div class="control-row">
+                    <button id="addPredatorBtn">添加鲨鱼</button>
                 </div>
-                <div class="controls">
-                    <button id="clearBtn">清空池子</button>
-                    <button id="addTestBtn">添加鱼群</button>
-                    <div class="control-row">
-                        <button id="addPredatorBtn">添加鲨鱼</button>
-                    </div>
-                </div>
-                <div class="instructions">
-                    <p>🐟 点击生物将其捕杀转化为能量点</p>
-                    <p>🌟 能量点会吸引附近的生物</p>
-                    <p>🦈 鲨鱼会主动捕食其他鱼</p>
-                    <p>🐠 小鱼会形成鱼群</p>
-                    <p>⚔️ 同样大小的鱼会争斗</p>
-                    <p>🏃 鱼会逃离比自己大三倍的鱼</p>
-                </div>
+            </div>
+            <div class="instructions">
+                <p>🐟 点击生物将其转化为能量点</p>
+                <p>🌟 能量点会吸引附近的生物</p>
+                <p>🦈 鲨鱼会主动捕食其他鱼</p>
+                <p>🐠 小鱼会形成鱼群</p>
+                <p>⚔️ 同样大小的鱼会争斗</p>
+                <p>🏃 鱼会逃离比自己大三倍的鱼</p>
+                <p>🚀 速度与大小成反比</p>
             </div>
         </div>
     </div>
-
+</div>
     <script>
         // =============================================
         // 能量点类 - 定义能量点的行为和外观
@@ -1210,7 +1212,7 @@
                 this.lastFpsUpdate = 0;
 
                 // 性能优化
-                this.maxMicrobes = 500; // 提高最大生物数量限制
+                this.maxMicrobes = 600; // 提高最大生物数量限制
                 this.lastMicrobeCleanup = 0;
 
                 // 初始化
